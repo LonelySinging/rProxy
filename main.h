@@ -1,0 +1,164 @@
+#include <rthread.h>
+#include <rpoll.h> 
+
+#include "packet.h"
+                    
+#include <unistd.h> 
+#include <iostream> 
+
+using namespace std;
+
+// 请求端的处理逻辑
+class ClientHandle;
+class RequestHandle : public GNET::BaseNet{
+private:
+    ClientHandle* _client_bn;
+    int _sid;   // 每个请求对应一个sid
+public:
+    RequestHandle(GNET::BaseNet& bn, ClientHandle* client_bn, int sid) 
+    : GNET::BaseNet(bn), _client_bn(client_bn), _sid(sid){
+        printf("[Info]: 接收到了 %s:%d [%d] 的连接\n", _host.c_str(), _port, _sid);
+    };    // 这里应该会触发 BaseNet 的拷贝构造
+
+    void OnRecv();  // 来自请求端的数据
+};
+
+
+// 每个客户端对应一个实例
+class ClientListener : public GNET::Passive{
+public:
+    enum{
+        MIX_SID = 1,    // 最小sid
+        MAX_SID = 1000  // 最大sid
+    };
+private:
+    int _session;   // 生成 sid的依据
+    int _client_fd;
+    ClientHandle* _client_bn;    // 客户端的套接字
+
+    int get_sid(){
+        if (_session > MAX_SID){
+            _session = MIX_SID;
+        }
+        return _session++;
+    };
+
+public:
+    ClientListener(string host, int port, ClientHandle* bn) : Passive(host, port), _client_bn(bn){
+        if(IsError()){
+            printf("[Error]: 代理端口监听失败\n");
+            return ;
+        }
+        _session = 0;
+        _client_fd = 0;
+    }
+    void OnRecv();
+};
+
+// 客户端 Handle
+class ClientHandle : public GNET::BaseNet{
+private:
+    // 记录所有与之相关的请求端
+    std::map<int, GNET::BaseNet*> _sessions;    // sid, client_bn
+    ClientListener* _cl;        // 监听端口套接字，用于与客户端断开时关闭端口
+
+public:
+    ClientHandle(GNET::BaseNet& bn) 
+    : GNET::BaseNet(bn), _cl(NULL){
+        printf("[Info]: 与客户端 %s:%d 建立联系\n", _host.c_str(), _port);
+    };
+
+    void OnRecv();  // 来自客户端的数据
+
+    void set_client_listener(ClientListener *cl){_cl = cl;}
+
+    GNET::BaseNet* fetch_bn(int sid = -1){
+        if (sid == -1){ // 取到第一个请求端，调试用
+            if (_sessions.begin() != _sessions.end()){
+                return _sessions.begin()->second;
+            }
+        }else{
+            std::map<int, GNET::BaseNet*>::iterator iter = _sessions.find(sid);
+            if(_sessions.end() != iter){
+                return iter->second;
+            }
+        }
+        return NULL;
+    }
+
+    void add_session(int sid, GNET::BaseNet* bn){
+        _sessions[sid] = bn;
+        dump_sessions();
+    }
+
+    void del_session(int sid){
+        if(sid == -1){
+            std::map<int, GNET::BaseNet*>::iterator iter = _sessions.begin();
+            for (;iter != _sessions.end();iter++){
+                iter->second->OnClose();
+                delete iter->second;
+                printf("[Info]: 结束会话 sid: %d\n", iter->first);
+            }
+            _sessions.clear();
+        }else{
+            std::map<int, GNET::BaseNet*>::iterator iter = _sessions.find(sid);
+            if (iter != _sessions.end()){
+                iter->second->OnClose();
+                delete iter->second;
+                printf("[Info]: 结束会话 sid: %d\n", iter->first);
+                _sessions.erase(iter);
+            }
+        }
+    }
+
+    void dump_sessions(){
+        for (auto iter : _sessions){
+            printf("[Debug]: dump(sid=%d, host=%s, port=%d, sock_fd=%d)\n",
+                        iter.first, 
+                        iter.second->get_host().c_str(),
+                        iter.second->get_port(),
+                        iter.second->get_sock());
+        }
+    }
+};
+
+
+// 负责接收来自客户端的连接
+class ServerListener : public GNET::Passive{
+private:
+    int _client_port;
+    static int _client_count;      // 活跃的客户端数
+public:
+    enum{
+        START_PORT = 7201,  // 代理监听的开始端口
+        CLIENT_COUNT = 10,     // 客户端数量数量
+        MAX_PORT = 7210,         // 最大端口号
+        MAX_TRY_NUM = 10        // 最大尝试绑定端口数
+    };
+    ServerListener(string host, int port):Passive(host, port){
+        if(IsError()){
+            printf("[Error]: 创建监听失败\n");
+            return ;
+        }
+        _client_port = START_PORT;    // 客户端监听从7201开始
+        _client_count = 0;
+        GNET::Poll::register_poll(this);
+    };
+
+    void OnRecv();
+
+    int get_client_count(){return _client_count;}
+    static void inc_client_count(){
+        _client_count--;
+        if(_client_count < 0){
+            printf("[Warning]: 客户端计数小于0\n");
+            _client_count = 0;
+        }
+    };
+    static void dec_client_count(){
+        _client_count++;
+        if(_client_count > CLIENT_COUNT){
+            printf("[Warning]: 超出客户端上限 Real/Max: %d/%d\n", _client_count, CLIENT_COUNT);
+        }
+    }
+};
