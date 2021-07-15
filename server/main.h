@@ -1,4 +1,4 @@
-#ifdef __LINUX
+#ifdef __linux
 #include <rthread.h>
 #include <rpoll.h>
 #include <unistd.h> 
