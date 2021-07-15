@@ -1,7 +1,9 @@
 #include "packet.h"
 
+#include <iostream>
+
 char* Packet::Pack(int sid, int data_len, char* data){
-    if (!data || data_len < 0){return NULL}
+    if (!data || data_len < 0) { return NULL; }
 
     packet_data* pd = (packet_data*)malloc(HEADER_SIZE + data_len);
     if (!pd){return NULL;}
@@ -11,10 +13,10 @@ char* Packet::Pack(int sid, int data_len, char* data){
 
     memcpy(pd->data, data, data_len);
 
-    return pd;
+    return (char*)pd;
 }
 
-packet_data* Packet::UnPack(char* data){
+Packet::packet_data* Packet::UnPack(char* data){
     if (!data){return NULL;}
 
     packet_data* pd = (packet_data*)data;

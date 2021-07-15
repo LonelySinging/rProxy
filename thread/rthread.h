@@ -5,11 +5,17 @@
  *by st
  *
  * */
+
+#ifdef __LINUX
+#include <unistd.h>
+#endif // _LINUX
+
+
 #include <thread>
 #include <vector>
 #include <atomic>
 #include <algorithm>
-#include <unistd.h>
+
 #include <iostream>
 
 

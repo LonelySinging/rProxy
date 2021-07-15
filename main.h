@@ -1,9 +1,16 @@
+#ifdef __LINUX
 #include <rthread.h>
-#include <rpoll.h> 
+#include <rpoll.h>
+#include <unistd.h> 
+
+#else
+#include "thread/rthread.h"
+#include "poll/rpoll.h"
+#endif // _LINUX
 
 #include "packet.h"
                     
-#include <unistd.h> 
+
 #include <iostream> 
 
 using namespace std;
