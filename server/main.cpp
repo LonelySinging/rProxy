@@ -9,13 +9,14 @@ using namespace std;
 void RequestHandle::OnRecv(){
     char buff[Packet::DATA_SIZE];
     int len = Recv(buff, Packet::DATA_SIZE);
-    printf("[Debug]: <-- Request %d\n", len);
+    printf("[Debug]: <-- Request %d : %s\n", len, buff);
     if (len == 0){
         _client_bn->del_session(_sid);
         return ;
     }
     Packet* pk = new Packet(_sid, len, buff);
     char* send_data = pk->get_p();
+    pk->dump();
     if (send_data){
         _client_bn->SendPacket(send_data, pk->get_packet_len());
     }else{
@@ -53,9 +54,10 @@ void ClientHandle::OnRecv(){
         return ;
     }
     Packet* pk = new Packet(buff, len);
-    
+    pk->dump();
     GNET::BaseNet* bn = fetch_bn(pk->get_sid());
     if(bn){
+        printf("[Debug]: sid=%d\n", pk->get_sid());
         bn->Send(pk->get_data(), len);
     }else{
         printf("[Warning]: 没有找到 sid=%d 的会话, len=%d\n", pk->get_sid(), len);
@@ -126,7 +128,7 @@ int ServerListener::_client_count = 0;
 
 int main(){
 	
-    if((new ServerListener("0.0.0.0", 7200))->IsError()){
+    if((new ServerListener("0.0.0.0", 7201))->IsError()){
         return -1;
     }
     

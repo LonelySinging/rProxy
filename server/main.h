@@ -56,7 +56,7 @@ public:
             printf("[Error]: 代理端口监听失败\n");
             return ;
         }
-        _session = 0;
+        _session = MIX_SID;
         _client_fd = 0;
     }
     void OnRecv();

@@ -3,6 +3,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <iostream>
 
 class Packet{
 public:
@@ -21,6 +22,7 @@ public:
         if (!data){return ;}
         _pd = (packet_data*)malloc(HEADER_SIZE + data_len);
         _pd->sid = sid;
+        _data_len = data_len;
         memcpy(_pd->data, data, data_len);
     }
 
@@ -39,7 +41,19 @@ public:
     unsigned short int get_sid(){if(!_pd){return 0;}return _pd->sid;};
     unsigned short int get_data_len(){if(!_pd){return 0;}return _data_len;};
     char* get_data(){if(!_pd){return NULL;}return _pd->data;}
-    size_t get_packet_len(){if(!_pd){return 0;}return _data_len + HEADER_SIZE;};
+    size_t get_packet_len(){if(!_pd){return 0;}return (_data_len + HEADER_SIZE);};
+
+    void dump(int len = 15){
+        int dump_len = std::min(len, (int)get_packet_len());
+        printf("[Debug]: dump(sid=%d, dump_len=%d): ", get_sid(), dump_len);
+        for (int i=0;i<dump_len;i++){
+            if (!(i % 15)){
+                printf("\n");
+            }
+            printf("%x ", ((char*)_pd)[i]);
+        }
+        printf("\n");
+    }
 
     // 经典的打包解包方法
     static char* Pack(int sid, int data_len, char* data);      // 打包
