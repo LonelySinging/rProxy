@@ -23,6 +23,7 @@ namespace GNET {
     using std::string;
     using std::cout;
     using std::endl;
+    using std::map;
 
     enum {
         MAX_CONNECT = 1024,
@@ -221,15 +222,25 @@ namespace GNET {
                 SetError();
                 return;
             }
-            printf("[Info]: 连接成功: %s:%d", _host.c_str(), _port);
+            printf("[Info]: 连接成功: %s:%d\n", _host.c_str(), _port);
         }
     };
 
     class Poll {
+    public:
+        enum {
+            TIMEOUT = 500  // 超时时间 毫秒
+        };
     private:
+#ifdef __linux
         static struct epoll_event _ev, _events[MAX_CONNECT];
         static int _eph;
+#else
+        static timeval _select_timeout;
+        static fd_set _read_fds;
+        static map<int, BaseNet*> _read_fds_map;
 
+#endif
         static bool _running;
     public:
         Poll() {
@@ -239,8 +250,20 @@ namespace GNET {
             if (_eph < 0) { perror("[Error]: 创建epoll错误"); }
 #else
 
+            // FD_ZERO(&_read_fds);
 #endif
         };
+
+#ifdef __linux
+        ;
+#else
+        static void init_select() {
+            _select_timeout.tv_sec = 0;
+            _select_timeout.tv_usec = TIMEOUT;
+            FD_ZERO(&_read_fds);
+        }
+#endif
+
         static void register_poll(BaseNet* bn) {
             printf("[Debug]: 注册poll _sock_fd: %d, bn: %p\n", bn->get_sock(), bn);
 
@@ -250,7 +273,8 @@ namespace GNET {
             _ev.data.ptr = bn;
             epoll_ctl(_eph, EPOLL_CTL_ADD, bn->get_sock(), &_ev);
 #else
-
+            FD_SET(bn->get_sock(),&_read_fds);
+            _read_fds_map[bn->get_sock()] = bn;
 #endif
         }
         static void deregister_poll(BaseNet* bn) {
@@ -259,7 +283,8 @@ namespace GNET {
 #ifdef __linux
             epoll_ctl(_eph, EPOLL_CTL_DEL, bn->get_sock(), NULL);
 #else
-
+            FD_CLR(bn->get_sock(), &_read_fds);
+            _read_fds_map.erase(bn->get_sock());
 #endif
         }
         static void loop_poll() {
@@ -267,7 +292,7 @@ namespace GNET {
             _running = true;
             for (; _running;) {
 #ifdef __linux
-                int n = epoll_wait(_eph, _events, MAX_CONNECT, 500);
+                int n = epoll_wait(_eph, _events, MAX_CONNECT, TIMEOUT);
                 // if(n != 0){printf("[Debug]: n=%d\n", n);};
                 for (int i = 0; i < n; i++) {
                     // printf("[Debug]: loop_poll: %p\n",_events[i].data.ptr);
@@ -275,7 +300,21 @@ namespace GNET {
                     // 这个确实是多态，没有问题。但是为什么会第一次失败，就不知道了
                 }
 #else
-
+                // printf("[Debug]: t1=%d, t2=%d\n", _select_timeout.tv_sec, _select_timeout.tv_usec);
+                int n = select(0, &_read_fds, NULL, NULL, /*&_select_timeout*/NULL);
+                printf("[Debug]: 1: %d, 2: %d\n", _read_fds.fd_count, _read_fds.fd_array[0]);
+                if (n == SOCKET_ERROR) {
+                    printf("[Error]: Select 错误 WSAGetLastError: %d\n", WSAGetLastError());
+                    stop_poll();
+                    WSACleanup();
+                    continue;
+                };
+                if (n == 0) { continue; };
+                for (auto fd : _read_fds_map) {
+                    if (FD_ISSET(fd.first, &_read_fds)) {
+                        fd.second->OnRecv();
+                    }
+                }
 #endif
             }
 

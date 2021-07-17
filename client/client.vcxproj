@@ -76,7 +76,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/utf-8</AdditionalOptions>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>

@@ -10,6 +10,8 @@ namespace GNET{
 
     int Poll::_eph = 0;
 #else
-
+    timeval Poll::_select_timeout;
+    fd_set Poll::_read_fds;
+    map<int, BaseNet*> Poll::_read_fds_map;
 #endif
 };

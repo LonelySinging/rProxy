@@ -44,7 +44,8 @@ public:
     size_t get_packet_len(){if(!_pd){return 0;}return (_data_len + HEADER_SIZE);};
 
     void dump(int len = 15){
-        int dump_len = std::min(len, (int)get_packet_len());
+        int pk_len = get_packet_len();
+        int dump_len = (len<pk_len)?len: pk_len;
         printf("[Debug]: dump(sid=%d, dump_len=%d): ", get_sid(), dump_len);
         for (int i=0;i<dump_len;i++){
             if (!(i % 15)){
