@@ -20,7 +20,7 @@ public:
 
     Packet(int sid, int data_len, char* data) : _pd(NULL){  // 打包
         if (!data){return ;}
-        _pd = (packet_data*)malloc(data_len);
+        _pd = (packet_data*)malloc(data_len + HEADER_SIZE);
         _pd->sid = sid;
         _data_len = data_len;
         memcpy(_pd->data, data, data_len);
@@ -29,9 +29,9 @@ public:
     Packet(char* data, int len) : _pd(NULL){     // 解包
         if (!data){return ;}
         // unsigned short int sid = ((packet_data*)data)->sid;
-        _data_len = len;
-        _pd = (packet_data*)malloc(_data_len);
-        memcpy(_pd, data, _data_len);
+        _data_len = len - HEADER_SIZE;
+        _pd = (packet_data*)malloc(len);
+        memcpy(_pd, data, len);
     }
 
     ~Packet(){free(_pd);};
@@ -39,9 +39,9 @@ public:
     packet_data* get_pd(){if(!_pd){return NULL;}return _pd;};
     char* get_p(){return (char*)get_pd();};
     unsigned short int get_sid(){if(!_pd){return 0;}return _pd->sid;};
-    unsigned short int get_data_len(){if(!_pd){return 0;}return _data_len - HEADER_SIZE;};
+    unsigned short int get_data_len(){if(!_pd){return 0;}return _data_len;};
     char* get_data(){if(!_pd){return NULL;}return _pd->data;}
-    size_t get_packet_len(){if(!_pd){return 0;}return (_data_len);};
+    size_t get_packet_len(){if(!_pd){return 0;}return (_data_len + HEADER_SIZE);};
 
     void dump(int len = 15){
         int pk_len = get_packet_len();
