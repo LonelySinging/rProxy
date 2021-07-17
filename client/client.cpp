@@ -27,8 +27,12 @@ public:
 		}
 		if (ret == -1) { return; };
 		Packet* pk = new Packet(data, ret);
-		printf("[Debug]: pk(sid=%d, data_len, str=%s)\n", pk->get_data_len(), pk->get_data());
+		printf("[Debug]: pk(sid=%d, data_len=%d, str=%s)\n", pk->get_sid(), pk->get_data_len(), pk->get_data());
 		pk->dump();
+
+		SendPacket(pk->get_p(), pk->get_packet_len());
+		
+		free(data);
 		delete pk;
 	}
 };
