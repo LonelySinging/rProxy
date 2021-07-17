@@ -2,3 +2,5 @@
 *.o
 main
 *.swp
+Debug/
+Release/

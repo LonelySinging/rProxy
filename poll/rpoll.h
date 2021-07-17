@@ -93,6 +93,10 @@ namespace GNET {
         virtual size_t Send(char* data, size_t len) {
             return send(_sock_fd, data, len, 0);
         }
+
+        virtual size_t SendPacket() { return -1; };     // 因为每次的包可能都不一样，所以使用虚函数，让子类自行实现
+        virtual size_t RecvPacket() { return -1; };
+
         unsigned int get_flag() { return _flag; };
         void SetError() { _flag |= NET_ERROR; }
         bool IsError() { return _flag & NET_ERROR; };
