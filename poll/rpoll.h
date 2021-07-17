@@ -36,10 +36,20 @@ namespace GNET {
         int _sock_fd;
         unsigned int _flag;
         struct sockaddr_in _addr;
+        char* _buffer; // 接收缓冲区    // 记得初始化
+        int _packet_size;  // 实际包大小   记得初始化
+        int _packet_pos;    // 已经接收的实际大小
     public:
         enum {
             NET_ERROR = 0x0001     // 连接失败
         };
+        
+        // 基础包结构，只有数据大小头
+        typedef struct {
+            unsigned short int data_len;
+            char data[];
+        }BasePacket;
+
         int& get_sock() { return _sock_fd; };
         void set_sock(int sock) { _sock_fd = sock; };
         string& get_host() { return _host; };
@@ -49,8 +59,11 @@ namespace GNET {
         struct sockaddr_in& get_sockaddr_in() { return _addr; };
         void set_sockaddr_in(struct sockaddr_in& addr) { memcpy(&_addr, &addr, sizeof(addr)); };
 
-        BaseNet() { _flag = 0; };
-        BaseNet(string host, int port) :_host(host), _port(port) { _flag = 0; };
+        BaseNet() : _flag(0), _buffer(NULL), _packet_size(0), _packet_pos(0) {};
+        BaseNet(string host, int port) :_host(host), _port(port), _flag(0),
+                                        _buffer(NULL),
+                                        _packet_size(0),
+                                        _packet_pos(0){};
         ~BaseNet() {};
 
         virtual void OnRecv() {
@@ -59,6 +72,12 @@ namespace GNET {
 
         void OnClose() {
             // poll::deregister_poll(this);
+            if (_buffer){
+                free(_buffer);  
+                // 当套接字被关闭的时候，缓冲区肯定没用了
+                // 但是因为可能copy，所以不能在析构函数中free 
+                // 否则会导致delete副本之后所有的对象_buffer失效
+            }
 #ifdef __linux
             close(_sock_fd);
 #else
@@ -86,16 +105,64 @@ namespace GNET {
             return bn;
         }
 
-        virtual size_t Recv(char* data, size_t len) {
+        size_t Recv(char* data, size_t len) {
             return recv(_sock_fd, data, len, 0);
         };
 
-        virtual size_t Send(char* data, size_t len) {
+        size_t Send(char* data, size_t len) {
             return send(_sock_fd, data, len, 0);
         }
 
-        virtual size_t SendPacket() { return -1; };     // 因为每次的包可能都不一样，所以使用虚函数，让子类自行实现
-        virtual size_t RecvPacket() { return -1; };
+        // 发送包，返回发送出去的数据，不包含长度数据的长度
+        int SendPacket(char* data, size_t len) {
+            BasePacket* tmp = (BasePacket*) malloc(len + sizeof(unsigned short int));
+            tmp->data_len = len;
+            memcpy(tmp->data, data, len);
+            int ret = Send((char*)tmp, len + sizeof(unsigned short int));
+            free(tmp);
+            return ret;
+        };
+
+        // 返回 -1 是还没有收到完整包，应该忽略，返回0表示断开连接
+        // 很极端的情况？一次接收甚至没有接收到完整的基本包头。。。
+        int RecvPacket(char* data, size_t expected_len) {
+            char* tmp = (char*)malloc(expected_len);
+            if (!_buffer){
+                int ret = Recv(tmp, expected_len);
+                if (!ret){return 0;}    // 断开连接
+                _packet_size = ((BasePacket*)tmp)->data_len;
+                if (ret == (_packet_size + sizeof(unsigned short int))){    // 一次就接收了完整包
+                    memcpy(data, ((BasePacket*)tmp)->data, _packet_size);
+                    free(tmp);
+                    return _packet_size;
+                }else{  // 接收到了半个包
+                    _buffer = (char*)malloc(expected_len);
+                    int real_recv = ret - sizeof(unsigned short int);
+                    memcpy(_buffer + _packet_pos, ((BasePacket*)tmp)->data, real_recv);
+
+                    _packet_pos += real_recv;  // 记录已经接收的大小
+                    free(tmp);
+                    return -1;
+                }
+            }else{
+                int ret = Recv(tmp, (_packet_size - _packet_pos));    // 尝试接收包的剩余部分
+                if (!ret){return 0;}    // 断开连接
+                memcpy(_buffer + _packet_pos, tmp, ret);
+                _packet_pos += ret;
+                if (_packet_size == _packet_pos){   // 接收完毕
+                    memcpy(data, _buffer, _packet_pos);
+                    free(tmp);
+                    free(_buffer);
+                    _buffer = NULL;
+                    _packet_pos = 0;
+                    // _packet_size = 0;
+                    return _packet_size;
+                }else{  // 还没有接收完
+                    free(tmp);
+                    return -1;
+                }
+            }
+        };
 
         unsigned int get_flag() { return _flag; };
         void SetError() { _flag |= NET_ERROR; }

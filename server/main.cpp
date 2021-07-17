@@ -14,12 +14,14 @@ void RequestHandle::OnRecv(){
         _client_bn->del_session(_sid);
         return ;
     }
-    char* send_data = (new Packet(_sid, len, buff))->get_p();
+    Packet* pk = new Packet(_sid, len, buff);
+    char* send_data = pk->get_p();
     if (send_data){
-        _client_bn->Send(buff, len);
+        _client_bn->SendPacket(send_data, pk->get_packet_len());
     }else{
         printf("[Warning]: 组装数据包失败 buff=%p, _sid=%d, len=%d\n", buff, _sid, len);
     }
+    delete pk;
 }
 
 void ClientListener::OnRecv(){
@@ -37,7 +39,7 @@ void ClientListener::OnRecv(){
 
 void ClientHandle::OnRecv(){
     char buff[Packet::DATA_SIZE];
-    int len = Recv(buff, Packet::DATA_SIZE);
+    int len = RecvPacket(buff, Packet::DATA_SIZE);
     printf("[Debug]: <-- Client %d\n", len);
     if (len == 0){
         _cl->OnClose();     // 关闭端口监听
@@ -47,14 +49,18 @@ void ClientHandle::OnRecv(){
         delete this;        // 自杀
         return ;
     }
-    Packet* pk = new Packet(buff);
+    if (len == -1){ // 不是个完整的数据包
+        return ;
+    }
+    Packet* pk = new Packet(buff, len);
     
     GNET::BaseNet* bn = fetch_bn(pk->get_sid());
     if(bn){
-        bn->Send(buff, len);
+        bn->Send(pk->get_data(), len);
     }else{
         printf("[Warning]: 没有找到 sid=%d 的会话, len=%d\n", pk->get_sid(), len);
     }
+    delete pk;
 }
 
 void ServerListener::OnRecv(){

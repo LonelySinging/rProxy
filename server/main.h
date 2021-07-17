@@ -78,7 +78,6 @@ public:
     void OnRecv();  // 来自客户端的数据
 
     void set_client_listener(ClientListener *cl){_cl = cl;}
-
     GNET::BaseNet* fetch_bn(int sid = -1){
         if (sid == -1){ // 取到第一个请求端，调试用
             if (_sessions.begin() != _sessions.end()){
