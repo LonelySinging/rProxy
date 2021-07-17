@@ -4,3 +4,4 @@ main
 *.swp
 Debug/
 Release/
+core
