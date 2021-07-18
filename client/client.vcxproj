@@ -110,12 +110,15 @@
     <ClCompile Include="..\poll\rpoll.cpp" />
     <ClCompile Include="..\thread\rthread.cpp" />
     <ClCompile Include="client.cpp" />
+    <ClCompile Include="httproxy.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\packet.h" />
     <ClInclude Include="..\common\types.h" />
     <ClInclude Include="..\poll\rpoll.h" />
     <ClInclude Include="..\thread\rthread.h" />
+    <ClInclude Include="client.h" />
+    <ClInclude Include="httproxy.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

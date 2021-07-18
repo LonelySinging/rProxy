@@ -1,41 +1,49 @@
 #include <iostream>
 #include <stdlib.h>
 
-#include "../poll/rpoll.h"
-#include "../common/packet.h"
-#pragma execution_character_set("utf-8")
+
+#include "client.h"
+
 using namespace std;
 
-
-class ServerConn : public GNET::Active {
-public:
-	ServerConn(string host, int port) : Active(host, port) {
-		GNET::Poll::register_poll(this);
-	};
-	~ServerConn() {};
-
-	void OnRecv() {
-		printf("[Debug]: OnRecv()\n");
-		char* data = (char*)malloc(Packet::PACKET_SIZE);
-		int ret = RecvPacket(data, Packet::PACKET_SIZE);
-		if (ret == 0) {
-			OnClose();
-			GNET::Poll::deregister_poll(this);
-			GNET::Poll::stop_poll();
-			delete this;
-			return;
-		}
-		if (ret == -1) { return; };
-		Packet* pk = new Packet(data, ret);
-		printf("[Debug]: pk(sid=%d, data_len=%d, str=%s)\n", pk->get_sid(), pk->get_data_len(), pk->get_data());
-		pk->dump();
-
-		SendPacket(pk->get_p(), pk->get_packet_len());
-		
-		free(data);
-		delete pk;
+void ServerConn::OnRecv() {
+	printf("[Debug]: OnRecv()\n");
+	char* data = (char*)malloc(Packet::PACKET_SIZE);
+	int ret = RecvPacket(data, Packet::PACKET_SIZE);
+	if (ret == 0) {
+		OnClose();
+		GNET::Poll::deregister_poll(this);
+		GNET::Poll::stop_poll();
+		delete this;
+		return;
 	}
-};
+	if (ret == -1) { return; };
+	Packet* pk = new Packet(data, ret);
+	printf("[Debug]: pk(sid=%d, data_len=%d, str=%s)\n", pk->get_sid(), pk->get_data_len(), pk->get_data());
+	pk->dump();
+	unsigned short int sid = pk->get_sid();
+
+	map<int, HttpProxy*>::iterator iter = _hps.find(sid);
+	if (iter == _hps.end()) {
+		_hps[sid] = new HttpProxy(sid, this);
+		_hps[sid]->OnRecv(pk->get_data(), pk->get_data_len());
+	}
+	else {
+		_hps[sid]->OnRecv(pk->get_data(), pk->get_data_len());
+	}
+
+	free(data);
+	delete pk;
+}
+
+void ServerConn::remove_hp(int sid) {
+	map<int, HttpProxy*>::iterator iter = _hps.find(sid);
+	if (iter != _hps.end()) {
+		_hps[sid]->OnClose();
+		delete _hps[sid];
+		_hps.erase(iter);
+	}
+}
 
 int main() {
 	system("chcp 65001 && cls");
