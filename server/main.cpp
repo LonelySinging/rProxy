@@ -18,7 +18,7 @@ void RequestHandle::OnRecv(){
     char* send_data = pk->get_p();
     pk->dump();
     if (send_data){
-        printf("[Debug]: 发送出去%d\n", pk->get_packet_len());
+        printf("[Debug]: 发送出去%ld\n", pk->get_packet_len());
         _client_bn->SendPacket(send_data, pk->get_packet_len());
     }else{
         printf("[Warning]: 组装数据包失败 buff=%p, _sid=%d, len=%d\n", buff, _sid, len);
