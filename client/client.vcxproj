@@ -118,6 +118,7 @@
     <ClInclude Include="..\poll\rpoll.h" />
     <ClInclude Include="..\thread\rthread.h" />
     <ClInclude Include="client.h" />
+    <ClInclude Include="httpheader.h" />
     <ClInclude Include="httproxy.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

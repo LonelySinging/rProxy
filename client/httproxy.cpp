@@ -1,4 +1,5 @@
 #include "httproxy.h"
+#include "httpheader.h"
 
 using std::string;
 

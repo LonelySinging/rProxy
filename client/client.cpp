@@ -3,6 +3,7 @@
 
 
 #include "client.h"
+#include "httpheader.h"
 
 using namespace std;
 
@@ -48,6 +49,12 @@ void ServerConn::remove_hp(int sid) {
 int main() {
 	system("chcp 65001 && cls");
 	// windows 特色...
+	/*	// HttpHeader调试
+	char http_str[] = "GET http://www.baidu.com/hh?gg=3&uu=4 HTTP/1.1\r\nHost: www.baidu.com\r\nAccept: text*uu\r\nUA: Chrome\r\n\r\nbody";
+	HttpHeader* hh = new HttpHeader(string(http_str));
+
+	getchar();
+	exit(-1);*/
 	WSADATA wsaData;
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
 
