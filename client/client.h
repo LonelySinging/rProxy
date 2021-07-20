@@ -19,7 +19,7 @@ public:
 	};
 	~ServerConn() {};
 
-
+	void OnClose();
 	void OnRecv();
 
 	void remove_hp(int sid);

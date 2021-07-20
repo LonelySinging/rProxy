@@ -43,7 +43,23 @@ void ServerConn::OnRecv() {
 	delete pk;
 }
 
+void ServerConn::OnClose() {	// 重写父类方法的话，也需要实现原有 OnClose()的功能
+#ifdef __linux
+	close(_sock_fd);
+#else
+	closesocket(_sock_fd);
+#endif
+	// 需要在此处处理与http服务器的连接 如果想要实现短线重连的话。。。应该会在main()中实现
+	remove_hp(-1);
+}
+
 void ServerConn::remove_hp(int sid) {
+	if (sid == -1) {
+		for (auto it : _hps) {
+			remove_hp(it.first);
+		}
+		return;
+	}
 	map<int, HttpProxy*>::iterator iter = _hps.find(sid);
 	if (iter != _hps.end()) {
 		_hps[sid]->OnClose();
