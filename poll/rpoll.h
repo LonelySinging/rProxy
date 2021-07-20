@@ -130,7 +130,7 @@ namespace GNET {
             char* tmp = (char*)malloc(expected_len);
             if (!_buffer){
                 int ret = Recv(tmp, expected_len);
-                if ((ret == 0) || (ret == -1)){return 0;}    // 断开连接
+                if (ret <= 0){return 0;}    // 断开连接
                 _packet_size = ((BasePacket*)tmp)->data_len;
                 if (ret == (_packet_size + sizeof(unsigned short int))){    // 一次就接收了完整包
                     memcpy(data, ((BasePacket*)tmp)->data, _packet_size);
@@ -147,7 +147,7 @@ namespace GNET {
                 }
             }else{
                 int ret = Recv(tmp, (_packet_size - _packet_pos));    // 尝试接收包的剩余部分
-                if ((ret == 0) || (ret == -1)){return 0;}    // 断开连接
+                if (ret <= 0){return 0;}    // 断开连接
                 memcpy(_buffer + _packet_pos, tmp, ret);
                 _packet_pos += ret;
                 if (_packet_size == _packet_pos){   // 接收完毕

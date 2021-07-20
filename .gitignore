@@ -1,7 +1,9 @@
 .vs/
-*.o
-main
-*.swp
 Debug/
 Release/
+x64/
+x86/
 core
+*.[oa]
+*.swp
+main

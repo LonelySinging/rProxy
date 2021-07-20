@@ -9,17 +9,17 @@ using namespace std;
 void RequestHandle::OnRecv(){
     char buff[Packet::DATA_SIZE];
     int len = Recv(buff, Packet::DATA_SIZE);
-    printf("[Debug]: <-- Request %d : %s\n", len, buff);
+    printf("[Debug]: <-- Request %d\n", len);
     if (len == 0){
         _client_bn->del_session(_sid);
         return ;
     }
     Packet* pk = new Packet(_sid, len, buff);
     char* send_data = pk->get_p();
-    pk->dump();
+    // pk->dump();
     if (send_data){
-        printf("[Debug]: 发送出去%ld\n", pk->get_packet_len());
-        _client_bn->SendPacket(send_data, pk->get_packet_len());
+        int ret = _client_bn->SendPacket(send_data, pk->get_packet_len());
+        printf("[Debug]: --> Client %d\n", ret);
     }else{
         printf("[Warning]: 组装数据包失败 buff=%p, _sid=%d, len=%d\n", buff, _sid, len);
     }
@@ -56,11 +56,11 @@ void ClientHandle::OnRecv(){
         return ;
     }
     Packet* pk = new Packet(buff, len);
-    pk->dump();
+    // pk->dump();
     GNET::BaseNet* bn = fetch_bn(pk->get_sid());
     if(bn){
-        printf("[Debug]: sid=%d\n", pk->get_sid());
-        bn->Send(pk->get_data(), pk->get_data_len());
+        int ret = bn->Send(pk->get_data(), pk->get_data_len());
+        printf("[Debug]: --> Request %d sid=%d\n", pk->get_sid(), ret);
     }else{
         printf("[Warning]: 没有找到 sid=%d 的会话, len=%d\n", pk->get_sid(), len);
     }
@@ -128,7 +128,11 @@ void ServerListener::OnRecv(){
 
 int ServerListener::_client_count = 0;
 
-int main(){
+int main(int argv, char* args[]){
+    int port = 7200;
+    if (argv == 2){
+        port = atoi(args[1]);
+    }
 	
     if((new ServerListener("0.0.0.0", 7200))->IsError()){
         return -1;
