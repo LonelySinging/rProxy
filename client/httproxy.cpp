@@ -20,62 +20,25 @@ void HandleHttp::OnRecv() {
 void HttpProxy::OnRecv(char* data, int len) {
 	string http_str(data, len);
 	// http 请求
+	
 	if (http_str.find("GET") == 0 || http_str.find("POST") == 0 || http_str.find("HEAD") == 0) {
 		// printf("[Debug]: 是 http 请求\n");
-		int str_len = http_str.length();
-		int header_end = http_str.find("\r\n\r\n");	// 请求头的尾部 所有操作不该超过头
-
-		int host_pos = http_str.find("Host: ");
-		int host_line_end = http_str.find("\r\n", host_pos);	// host行尾部
-		// printf("[Debug]: host_pos: %d, host_line_end: %d\n", host_pos, host_line_end);
-		if (host_pos < header_end && host_line_end < header_end) {
-			int http_pos = http_str.find("http://");
-			string host_ip = http_str.substr(host_pos + strlen("Host: "), host_line_end);
-
-			if (host_ip != "") {
-				string host;
-				int port = 0;
-				if (host_ip.find(":") < host_ip.length()) {	// 指定了端口
-					host = host_ip.substr(0, host_ip.find(":"));
-					//printf("[Debug]: host: %s\n", host.c_str());
-					string port_str = host_ip.substr(host_ip.find(":") + 1, host_line_end).c_str();
-					port = atoi(port_str.c_str());
-					//printf("[Debug]: port: %d\n", port);
-				}
-				else {
-					host = host_ip;
-					port = 80;
-				}
-				
-				printf("[Debug]: str_len=%d, header_end=%d, host_pos=%d, host_line_end=%d\
-							host=%s",
-					str_len, header_end, host_pos, host_line_end, host.c_str());
-				//dump(http_str, header_end);
-				char* ip_str = GetIpByName(host.c_str());
-				if (!ip_str) {
-					printf("[Debug]: 解析域名错误 %s:%d, errcode: %d\n",host.c_str(), port, GetLastError());
-				}
-				else {
-					http_str.erase(http_pos, strlen("http://") + host_ip.length());
-					string ip(ip_str);
-					printf("[info]: 解析ip: %s:%d\n", ip.c_str(), port);
-					_http_handler = new HandleHttp(ip, port, _server_conn, _sid);	// 与http服务端建立连接
-					if (!_http_handler->IsError()) {
-						_http_handler->Send((char*)http_str.c_str(), http_str.length());
-						GNET::Poll::register_poll(_http_handler);
-						return;
-					}
-				}
-			}
-			else {
-				printf("[Warning]: 没有找到host\n");
+		HttpHeader hh(http_str);
+		char ip[128] = {0};
+		;
+		int port = hh.get_port();
+		if (GetIpByName(hh.get_host().c_str(), ip) && port) {
+			_http_handler = new HandleHttp(ip, port, _server_conn, _sid);	// 与http服务端建立连接
+			if (!_http_handler->IsError()) {
+				_http_handler->Send((char*)hh.rewrite_header().c_str(), http_str.length());
+				GNET::Poll::register_poll(_http_handler);
+				return;
 			}
 		}
 		else {
-			printf("[Warning]: 错误的包结构\n");
+			printf("[Error]: 域名解析失败 %s:%d\n", hh.get_host().c_str(), hh.get_port());
 		}
 		printf("[Info]: 结束会话 %d\n", _sid);
-		dump(http_str, header_end);
 		OnClose();
 		_server_conn->remove_hp(_sid);
 	}

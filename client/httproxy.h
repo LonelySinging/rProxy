@@ -57,13 +57,14 @@ public:
 	}
 
 	// 通过域名获取IP
-	char* GetIpByName(const char* str)
+	bool GetIpByName(const char* str, char ip[])
 	{
 		struct hostent* host = gethostbyname(str);
 		if (!host){
-			return NULL;
+			return false;
 		}
-		return inet_ntoa(*(struct in_addr*)host->h_addr_list[0]);
+		sprintf_s(ip, 18, "%s", inet_ntoa(*(struct in_addr*)host->h_addr_list[0]));
+		return true;
 	}
 
 };

@@ -106,11 +106,11 @@ namespace GNET {
             return bn;
         }
 
-        size_t Recv(char* data, size_t len) {
+        int Recv(char* data, size_t len) {
             return recv(_sock_fd, data, len, 0);
         };
 
-        size_t Send(char* data, size_t len) {
+        int Send(char* data, size_t len) {
             return send(_sock_fd, data, len, 0);
         }
 

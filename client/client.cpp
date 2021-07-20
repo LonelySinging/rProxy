@@ -20,8 +20,8 @@ void ServerConn::OnRecv() {
 	}
 	if (ret == -1) { return; };
 	Packet* pk = new Packet(data, ret);
-	printf("[Debug]: pk(sid=%d, data_len=%d, str=%s)\n", pk->get_sid(), pk->get_data_len(), pk->get_data());
-	pk->dump();
+	//printf("[Debug]: pk(sid=%d, data_len=%d, str=%s)\n", pk->get_sid(), pk->get_data_len(), pk->get_data());
+	//pk->dump();
 	unsigned short int sid = pk->get_sid();
 
 	map<int, HttpProxy*>::iterator iter = _hps.find(sid);
@@ -49,12 +49,19 @@ void ServerConn::remove_hp(int sid) {
 int main() {
 	system("chcp 65001 && cls");
 	// windows 特色...
-	/*	// HttpHeader调试
-	char http_str[] = "GET http://www.baidu.com/hh?gg=3&uu=4 HTTP/1.1\r\nHost: www.baidu.com\r\nAccept: text*uu\r\nUA: Chrome\r\n\r\nbody";
+/*
+		// HttpHeader调试
+	//char http_str[] = "GET http://www.baidu.com/hh?gg=3&uu=4 HTTP/1.1\r\nHost: www.baidu.com\r\nAccept: text*uu\r\nUA: Chrome\r\n\r\nbody";
+	char http_str[] = "GET http://www.baidu.com:8080/hh?gg=3&uu=4 HTTP/1.1\r\nHost: www.baidu.com:8080\r\nAccept: text*uu\r\nUA: Chrome\r\n\r\nbody";
+	//char http_str[] = "CONNECT baidu.com:443 HTTP/1.0\r\n\r\n";
 	HttpHeader* hh = new HttpHeader(string(http_str));
-
+	cout << "accept: "<< hh->has_key("Host") << endl;
+	cout << "host: " << hh->get_host() << endl;
+	cout << "port: " << hh->get_port() << endl;
+	cout << "reheader: \n" << hh->rewrite_header() << endl;
 	getchar();
 	exit(-1);*/
+
 	WSADATA wsaData;
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
 
