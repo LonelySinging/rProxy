@@ -11,10 +11,11 @@ headers = {
 }
 
 def open_html(url):
-    proxies = {'http':'http://39.106.164.33:7206'}
+    proxies = {'http':'http://39.106.164.33:7201'}
     # proxies = {'https':'https://127.0.0.1:7201'}
     # proxies = {'http':'http://127.0.0.1:7201'}
     r = requests.get(url, proxies=proxies, headers=headers, timeout=10)
+    return r.text
     
-open_html("http://pan.xint.top");
+print(open_html("http://xint.top:9999"))
 # open_html("https://baidu.com");

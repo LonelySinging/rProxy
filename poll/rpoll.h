@@ -283,7 +283,7 @@ namespace GNET {
 #ifdef __linux
             epoll_ctl(_eph, EPOLL_CTL_DEL, bn->get_sock(), NULL);
 #else
-            FD_CLR(bn->get_sock(), &_read_fds);
+            FD_CLR(bn->get_sock(), &_read_fds);     // 忘记取消注册的话，会导致select检查已经被关闭的套接字 导致出现 10038 错误
             _read_fds_map.erase(bn->get_sock());
 #endif
         }
@@ -302,7 +302,7 @@ namespace GNET {
 #else
                 // printf("[Debug]: t1=%d, t2=%d\n", _select_timeout.tv_sec, _select_timeout.tv_usec);
                 int n = select(0, &_read_fds, NULL, NULL, /*&_select_timeout*/NULL);
-                printf("[Debug]: 1: %d, 2: %d\n", _read_fds.fd_count, _read_fds.fd_array[0]);
+                // printf("[Debug]: 1: %d, 2: %d\n", _read_fds.fd_count, _read_fds.fd_array[0]);
                 if (n == SOCKET_ERROR) {
                     printf("[Error]: Select 错误 WSAGetLastError: %d\n", WSAGetLastError());
                     stop_poll();
@@ -310,9 +310,12 @@ namespace GNET {
                     continue;
                 };
                 if (n == 0) { continue; };
-                for (auto fd : _read_fds_map) {
-                    if (FD_ISSET(fd.first, &_read_fds)) {
-                        fd.second->OnRecv();
+
+                map<int, BaseNet*>::iterator iter = _read_fds_map.begin();
+                for (; iter != _read_fds_map.end(); iter++) {
+                    if (FD_ISSET(iter->first, &_read_fds)) {
+                        iter->second->OnRecv();
+                        iter = _read_fds_map.begin();   // 可能会取消注册导致结构变化 所以从头开始
                     }
                 }
 #endif

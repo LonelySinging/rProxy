@@ -59,7 +59,7 @@ public:
 			_lines.push_back(line);
 			tmp.erase(tmp.begin(), tmp.begin() + line_end + 2);
 		}
-		dump_lines();
+		// dump_lines();
 		
 		if (_lines.size() < 1) { return ; }
 
@@ -96,7 +96,7 @@ public:
 			}
 			_kv[k] = v;
 		}
-		dump_kv();
+		// dump_kv();
 		// »ñÈ¡_path
 
 	}

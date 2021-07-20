@@ -42,6 +42,7 @@ public:
 	void OnRecv(char* data, int len);
 	void OnClose() {
 		if (_http_handler) {
+			GNET::Poll::deregister_poll(_http_handler);
 			_http_handler->OnClose();
 		}
 	};
