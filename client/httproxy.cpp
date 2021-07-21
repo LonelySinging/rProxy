@@ -61,8 +61,9 @@ void HttpProxy::OnRecv(char* data, int len) {
 		if (GetIpByName(hh.get_host().c_str(), ip) && port) {
 			_http_handler = new HandleHttp(ip, port, _server_conn, _sid);	// 与https服务端建立连接
 			if (!_http_handler->IsError()) {
-				Packet* pk = new Packet(_sid, strlen("HTTP/1.0 200 Connection established\r\n\r\n"), "HTTP/1.0 200 Connection established\r\n\r\n");
+				Packet* pk = new Packet(_sid, strlen("HTTP/1.1 200 Connection established\r\n\r\n"), "HTTP/1.1 200 Connection established\r\n\r\n");
 				int ret = _server_conn->Send(pk->get_p(), pk->get_packet_len());
+				printf("[Debug]: 发送认证 %d\n", ret);
 				delete pk;
 				if (ret <= 0) {
 					printf("[Error]: 发送到Server失败 sid=%d\n", _sid);	// 需要怎么处理？现在是与服务端断开了...
