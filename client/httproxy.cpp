@@ -62,7 +62,7 @@ void HttpProxy::OnRecv(char* data, int len) {
 			_http_handler = new HandleHttp(ip, port, _server_conn, _sid);	// 与https服务端建立连接
 			if (!_http_handler->IsError()) {
 				Packet* pk = new Packet(_sid, strlen("HTTP/1.1 200 Connection established\r\n\r\n"), "HTTP/1.1 200 Connection established\r\n\r\n");
-				int ret = _server_conn->Send(pk->get_p(), pk->get_packet_len());
+				int ret = _server_conn->SendPacket(pk->get_p(), pk->get_packet_len());
 				printf("[Debug]: 发送认证 %d\n", ret);
 				delete pk;
 				if (ret <= 0) {
