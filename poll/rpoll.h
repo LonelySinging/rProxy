@@ -15,7 +15,6 @@
 
 #include <string.h>
 
-
 #include <iostream>
 #include <map>
 
@@ -24,6 +23,7 @@ namespace GNET {
     using std::cout;
     using std::endl;
     using std::map;
+
 
     enum {
         MAX_CONNECT = 1024,
@@ -126,6 +126,7 @@ namespace GNET {
 
         // 返回 -1 是还没有收到完整包，应该忽略，返回0表示断开连接
         // 很极端的情况？一次接收甚至没有接收到完整的基本包头。。。
+        // 发少了 发多了 
         int RecvPacket(char* data, size_t expected_len) {
             char* tmp = (char*)malloc(expected_len);
             if (!_buffer){
@@ -148,8 +149,9 @@ namespace GNET {
             }else{
                 int ret = Recv(tmp, (_packet_size - _packet_pos));    // 尝试接收包的剩余部分
                 if (ret <= 0){return 0;}    // 断开连接
-                memcpy(_buffer + _packet_pos, tmp, ret);
-                _packet_pos += ret;
+                int real_recv = ret - sizeof(unsigned short int);
+                memcpy(_buffer + _packet_pos, ((BasePacket*)tmp)->data, real_recv);
+                _packet_pos += real_recv;
                 if (_packet_size == _packet_pos){   // 接收完毕
                     memcpy(data, _buffer, _packet_pos);
                     free(tmp);

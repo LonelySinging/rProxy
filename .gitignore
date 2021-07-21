@@ -3,7 +3,9 @@ Debug/
 Release/
 x64/
 x86/
+/server/poll
 core
 *.[oa]
 *.swp
 main
+tags

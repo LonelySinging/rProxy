@@ -60,7 +60,7 @@ void ClientHandle::OnRecv(){
     GNET::BaseNet* bn = fetch_bn(pk->get_sid());
     if(bn){
         int ret = bn->Send(pk->get_data(), pk->get_data_len());
-        printf("[Debug]: --> Request %d sid=%d\n", pk->get_sid(), ret);
+        printf("[Debug]: --> Request %d sid=%d\n", ret, pk->get_sid());
     }else{
         printf("[Warning]: 没有找到 sid=%d 的会话, len=%d\n", pk->get_sid(), len);
     }
