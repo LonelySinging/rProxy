@@ -303,7 +303,9 @@ namespace GNET {
                 }
 #else
                 // printf("[Debug]: t1=%d, t2=%d\n", _select_timeout.tv_sec, _select_timeout.tv_usec);
-                int n = select(0, &_read_fds, NULL, NULL, /*&_select_timeout*/NULL);
+                // 更新所有套接字进去
+                fd_set tmp_fds = _read_fds;
+                int n = select(0, &tmp_fds, NULL, NULL, /*&_select_timeout*/NULL);
                 // printf("[Debug]: 1: %d, 2: %d\n", _read_fds.fd_count, _read_fds.fd_array[0]);
                 if (n == SOCKET_ERROR) {
                     printf("[Error]: Select 错误 WSAGetLastError: %d\n", WSAGetLastError());
@@ -313,11 +315,10 @@ namespace GNET {
                 };
                 if (n == 0) { continue; };
 
-                map<int, BaseNet*>::iterator iter = _read_fds_map.begin();
-                for (; iter != _read_fds_map.end(); iter++) {
-                    if (FD_ISSET(iter->first, &_read_fds)) {
+                for (int i = 0; i < tmp_fds.fd_count; i++) {
+                    map<int, BaseNet*>::iterator iter = _read_fds_map.find(tmp_fds.fd_array[i]);
+                    if (iter != _read_fds_map.end()) {
                         iter->second->OnRecv();
-                        iter = _read_fds_map.begin();   // 可能会取消注册导致结构变化 所以从头开始
                     }
                 }
 #endif
