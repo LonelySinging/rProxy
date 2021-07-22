@@ -92,7 +92,9 @@ void HttpProxy::OnRecv(char* data, int len) {
 			_server_conn->remove_hp(_sid);
 		}
 		else {
-			_http_handler->Send(data, len);
+			//Packet* pk = new Packet(_sid, len, data);
+			len = _http_handler->Send(data, len);
+			//delete pk;
 			printf("[Debug]: --> Http %d\n", len);
 		}
 	}

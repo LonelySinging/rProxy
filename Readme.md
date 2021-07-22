@@ -41,3 +41,25 @@
 + 尝试实现Https的处理，客户端好像不会响应
 
     > 忘记看是谁先断开的了
+
+
+
+> [Debug]: <-- Client 41
+> [Debug]: --> Request 39 sid=2
+> [Debug]: <-- Request 517
+> [Debug]: --> Client 521
+> [Debug]: RecvPacket ret = 62
+> [Debug]: <-- Client 60
+> [Debug]: --> Request 58 sid=2
+> [Debug]: RecvPacket ret = 1440
+> [Debug]: <-- Client -1
+> [Debug]: RecvPacket ret = 1408
+> [Debug]: <-- Client -1
+> [Debug]: RecvPacket ret = 1290
+> [Debug]: <-- Client -1
+> [Debug]: <-- Request 0
+> [Info]: 结束会话 sid: 2
+> [Debug]: <-- Request 0
+> [Info]: 结束会话 sid: 1
+> [Debug]: RecvPacket ret = 35
+> [Debug]: <-- Client -1

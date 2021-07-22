@@ -55,8 +55,12 @@ void ServerConn::OnClose() {	// 重写父类方法的话，也需要实现原有
 
 void ServerConn::remove_hp(int sid) {
 	if (sid == -1) {
-		for (auto it : _hps) {
-			remove_hp(it.first);
+		map<int, HttpProxy*>::iterator iter = _hps.begin();	// 这地方不能使用递归删除，因为调用自己删除之后 这里的循环中的迭代器就失效了
+		for (; iter != _hps.end(); iter++) {
+			iter->second->OnClose();
+			delete iter->second;
+			_hps.erase(iter);
+			iter = _hps.begin();
 		}
 		return;
 	}
