@@ -10,7 +10,7 @@ void RequestHandle::OnRecv(){
     char buff[Packet::DATA_SIZE];
     int len = Recv(buff, Packet::DATA_SIZE);
     printf("[Debug]: <-- Request %d\n", len);
-    if (len == 0){
+    if (len <= 0){
         _client_bn->del_session(_sid);
         return ;
     }

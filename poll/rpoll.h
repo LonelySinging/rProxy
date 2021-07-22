@@ -132,6 +132,7 @@ namespace GNET {
             if (!_buffer){
                 int ret = Recv(tmp, expected_len);
                 if (ret <= 0){return 0;}    // 断开连接
+                printf("[Debug]: RecvPacket ret = %d\n", ret);
                 _packet_size = ((BasePacket*)tmp)->data_len;
                 if (ret == (_packet_size + sizeof(unsigned short int))){    // 一次就接收了完整包
                     memcpy(data, ((BasePacket*)tmp)->data, _packet_size);
@@ -149,6 +150,7 @@ namespace GNET {
             }else{
                 int ret = Recv(tmp, (_packet_size - _packet_pos));    // 尝试接收包的剩余部分
                 if (ret <= 0){return 0;}    // 断开连接
+                printf("[Debug]: RecvPacket ret = %d\n", ret);
                 int real_recv = ret - sizeof(unsigned short int);
                 memcpy(_buffer + _packet_pos, ((BasePacket*)tmp)->data, real_recv);
                 _packet_pos += real_recv;
