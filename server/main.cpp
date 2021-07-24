@@ -40,8 +40,8 @@ void ClientListener::OnRecv(){
 }
 
 void ClientHandle::OnRecv(){
-    char buff[Packet::DATA_SIZE];
-    int len = RecvPacket(buff, Packet::DATA_SIZE);
+    char buff[Packet::PACKET_SIZE + 2];
+    int len = RecvPacket(buff, Packet::PACKET_SIZE);
     printf("[Debug]: <-- Client %d\n", len);
     if (len == 0){
         _cl->OnClose();     // 关闭端口监听
