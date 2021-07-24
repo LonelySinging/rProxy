@@ -107,7 +107,15 @@ namespace GNET {
         }
 
         int Recv(char* data, size_t len) {
-            return recv(_sock_fd, data, len, 0);
+            int ret = 0;
+#ifdef __linux
+            do{
+                ret = recv(_sock_fd, data, len, 0);
+            }while(ret == -1 && errno == EINTR);    // windows 大概是没有errno
+#else
+            ret = recv(_sock_fd, data, len, 0);
+#endif
+            return ret;
         };
 
         int Send(char* data, size_t len) {
@@ -125,46 +133,29 @@ namespace GNET {
         };
 
         // 返回 -1 是还没有收到完整包，应该忽略，返回0表示断开连接
-        // 很极端的情况？一次接收甚至没有接收到完整的基本包头。。。
-        // 发少了 发多了 
+        // 包真的特别大 超过了缓冲区 ... 使用的时候别这么做...
         int RecvPacket(char* data, size_t expected_len) {
-            char* tmp = (char*)malloc(expected_len);
-            if (!_buffer){
-                int ret = Recv(tmp, expected_len);
-                if (ret <= 0){return 0;}    // 断开连接
-                printf("[Debug]: RecvPacket ret = %d\n", ret);
-                _packet_size = ((BasePacket*)tmp)->data_len;
-                if (ret == (_packet_size + sizeof(unsigned short int))){    // 一次就接收了完整包
-                    memcpy(data, ((BasePacket*)tmp)->data, _packet_size);
-                    free(tmp);
-                    return _packet_size;
-                }else{  // 接收到了半个包
-                    _buffer = (char*)malloc(expected_len);
-                    int real_recv = ret - sizeof(unsigned short int);
-                    memcpy(_buffer + _packet_pos, ((BasePacket*)tmp)->data, real_recv);
-
-                    _packet_pos += real_recv;  // 记录已经接收的大小
-                    free(tmp);
-                    return -1;
-                }
+            if (_packet_size == 0){ // 需要接收头部
+                unsigned short int l;
+                int ret = Recv((char*)&l, sizeof(unsigned short int));
+                if (ret <= 0){return 0;}
+                _packet_size = l;   // 得到包头
+                printf("[Debug]: 接收到的头 %d\n", l);
+                return -1;
             }else{
-                int ret = Recv(tmp, (_packet_size - _packet_pos));    // 尝试接收包的剩余部分
-                if (ret <= 0){return 0;}    // 断开连接
-                printf("[Debug]: RecvPacket ret = %d\n", ret);
-                int real_recv = ret - sizeof(unsigned short int);
-                memcpy(_buffer + _packet_pos, ((BasePacket*)tmp)->data, real_recv);
-                _packet_pos += real_recv;
-                if (_packet_size == _packet_pos){   // 接收完毕
-                    memcpy(data, _buffer, _packet_pos);
-                    free(tmp);
-                    free(_buffer);
-                    _buffer = NULL;
-                    _packet_pos = 0;
-                    // _packet_size = 0;
-                    return _packet_size;
-                }else{  // 还没有接收完
-                    free(tmp);
+                int ret = Recv(data + _packet_pos, _packet_size - _packet_pos);
+                printf("[Debug]: 接收%d/%d\n", ret, (_packet_size-_packet_pos));
+                if (ret <= 0){return 0;}
+                
+                if (ret != (_packet_size-_packet_pos)){   // 还没有接收完
+                    _packet_pos += ret;
                     return -1;
+                }else{
+                    int pp = _packet_size;
+                    _packet_size = 0;
+                    _packet_pos = 0;
+                    printf("[Debug]: 离谱 %d\n", pp);
+                    return pp;
                 }
             }
         };
