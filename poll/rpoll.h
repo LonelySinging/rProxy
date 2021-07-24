@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #else
+#define FD_SETSIZE 1024
 #include <winsock2.h>
 #include <WS2tcpip.h>
 #pragma comment(lib,"ws2_32.lib")
