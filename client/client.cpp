@@ -59,9 +59,8 @@ void ServerConn::remove_hp(int sid) {
 		for (; iter != _hps.end(); iter++) {
 			iter->second->OnClose();
 			delete iter->second;
-			_hps.erase(iter);
-			iter = _hps.begin();
 		}
+		_hps.clear();
 		return;
 	}
 	map<int, HttpProxy*>::iterator iter = _hps.find(sid);
