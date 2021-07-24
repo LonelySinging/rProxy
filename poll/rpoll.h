@@ -140,6 +140,11 @@ namespace GNET {
                 int ret = Recv((char*)&l, sizeof(unsigned short int));
                 if (ret <= 0){return 0;}
                 _packet_size = l;   // 得到包头
+                if (_packet_size > expected_len){
+                    printf("[Warning]: 异常的包头大小 %d\n", l);
+                    _packet_size = 0;
+                    return -1;
+                }
                 printf("[Debug]: 接收到的头 %d\n", l);
                 return -1;
             }else{
