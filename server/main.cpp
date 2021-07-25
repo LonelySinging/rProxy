@@ -127,14 +127,25 @@ void ServerListener::OnRecv(){
 };
 
 int ServerListener::_client_count = 0;
+int ServerListener::CLIENT_COUNT = 10;
+
+void usege(){
+    printf("使用方法: \n\tmain 端口 [客户端数量]\n\t默认是 main 7200 10\n");
+}
 
 int main(int argv, char* args[]){
     int port = 7200;
+    int max_client = 10;
     if (argv == 2){
         port = atoi(args[1]);
+    }else if(argv == 3){
+        port = atoi(args[1]);
+        max_client = atoi(args[2]);
+    }else{
+        usege();
     }
 	
-    if((new ServerListener("0.0.0.0", 7200))->IsError()){
+    if((new ServerListener("0.0.0.0", port, max_client))->IsError()){
         return -1;
     }
     

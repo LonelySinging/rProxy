@@ -134,19 +134,25 @@ class ServerListener : public GNET::Passive{
 private:
     int _client_port;
     static int _client_count;      // 活跃的客户端数
+    int START_PORT;                 // 代理监听的开始端口
+    static int CLIENT_COUNT;               // 客户端的最大数量
+    int MAX_PORT;                // 最大端口号
 public:
     enum{
-        START_PORT = 7201,  // 代理监听的开始端口
-        CLIENT_COUNT = 10,     // 客户端数量数量
-        MAX_PORT = 7210,         // 最大端口号
+        // START_PORT = 7201,  // 代理监听的开始端口
+        // CLIENT_COUNT = 10,     // 客户端数量数量
+        // MAX_PORT = 7210,         // 最大端口号
         MAX_TRY_NUM = 10        // 最大尝试绑定端口数
     };
-    ServerListener(string host, int port):Passive(host, port){
+    ServerListener(string host, int port, int max_client=10):Passive(host, port){
         if(IsError()){
             printf("[Error]: 创建监听失败\n");
             return ;
         }
-        _client_port = START_PORT;    // 客户端监听从7201开始
+        START_PORT = port + 1;
+        CLIENT_COUNT = max_client;
+        MAX_PORT = START_PORT + CLIENT_COUNT;
+        _client_port = START_PORT;    // 客户端监听从服务端口+1开始
         _client_count = 0;
         GNET::Poll::register_poll(this);
     };
