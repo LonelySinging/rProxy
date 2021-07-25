@@ -8,7 +8,7 @@
 using namespace std;
 
 void ServerConn::OnRecv() {
-	printf("[Debug]: OnRecv()\n");
+	// printf("[Debug]: OnRecv()\n");
 	char* data = (char*)malloc(Packet::PACKET_SIZE);
 	int ret = RecvPacket(data, Packet::PACKET_SIZE);
 	if (ret == 0) {
@@ -44,12 +44,8 @@ void ServerConn::OnRecv() {
 }
 
 void ServerConn::OnClose() {	// 重写父类方法的话，也需要实现原有 OnClose()的功能
-#ifdef __linux
-	close(_sock_fd);
-#else
-	closesocket(_sock_fd);
-#endif
-	// 需要在此处处理与http服务器的连接 如果想要实现短线重连的话。。。应该会在main()中实现
+	GNET::BaseNet::OnClose();	// 好像这样就能调用父类方法了？
+	// 需要在此处处理与http服务器的连接 如果想要实现断线重连的话。。。应该会在main()中实现
 	remove_hp(-1);
 }
 
@@ -71,28 +67,54 @@ void ServerConn::remove_hp(int sid) {
 	}
 }
 
-int main() {
-	system("chcp 65001 && cls");
-	// windows 特色...
-/*
-		// HttpHeader调试
-	//char http_str[] = "GET http://www.baidu.com/hh?gg=3&uu=4 HTTP/1.1\r\nHost: www.baidu.com\r\nAccept: text*uu\r\nUA: Chrome\r\n\r\nbody";
-	char http_str[] = "GET http://www.baidu.com:8080/hh?gg=3&uu=4 HTTP/1.1\r\nHost: www.baidu.com:8080\r\nAccept: text*uu\r\nUA: Chrome\r\n\r\nbody";
-	//char http_str[] = "CONNECT baidu.com:443 HTTP/1.0\r\n\r\n";
-	HttpHeader* hh = new HttpHeader(string(http_str));
-	cout << "accept: "<< hh->has_key("Host") << endl;
-	cout << "host: " << hh->get_host() << endl;
-	cout << "port: " << hh->get_port() << endl;
-	cout << "reheader: \n" << hh->rewrite_header() << endl;
-	getchar();
-	exit(-1);*/
+void usage() {
+	printf("用法: \n\tclient -h IP地址 -p 端口号 -n 备注 -t 口令\n\t例子: client -h 39.106.164.33 -p 7200 -n 家里的win11 -t 123456\n\n");
+}
 
+int main(int argv, char* args[]) {
+	system("chcp 65001 && cls");
+	char* host = "39.106.164.33";
+	int port = 7200;
+	char* note = NULL;
+	char* token = NULL;
+
+	if (argv == 1) {
+		usage();
+	}
+	else {
+		for (int i = 1; i < argv; i++) {
+			if (args[i][0] == '-' || args[i][0] == '/') {	// 认为是命令
+				if (argv > (i+1)) {	// 合法范围
+					switch (args[i][1])
+					{
+					case 'h':
+						host = args[i + 1];
+						break;
+					case 'p':
+						port = atoi(args[i+1]);
+						break;
+					case 'n':
+						note = args[i + 1];
+						break;
+					case 't':
+						token = args[i + 1];
+						break;
+					default:
+						break;
+					}
+					i++;	// 跳过参数内容
+				}
+			}
+		}
+	}
+
+	// windows 特色...
 	WSADATA wsaData;
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
 
 	GNET::Poll::init_select();
 	//if ((new ServerConn("127.0.0.1", 7200))->IsError()) {
-	if ((new ServerConn("39.106.164.33", 7200))->IsError()) {
+	if ((new ServerConn(host, port))->IsError()) {
 		printf("[Error]: 连接服务器失败 \n");
 		return -1;
 	}
