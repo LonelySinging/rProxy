@@ -7,7 +7,7 @@ void HandleHttp::OnRecv() {
 	char* buff = (char*)malloc(Packet::DATA_SIZE);	// 可以作为一个常备缓冲区
 	int ret = Recv(buff, Packet::DATA_SIZE);
 	if (ret <= 0) {
-		printf("[Debug]: 接收结束 ret=%d\n", ret);
+		printf("[Debug]: 接收结束 ret=%d sid=%d\n", ret, _sid);
 		_server_conn->remove_hp(_sid);	// 结束 handle
 	}else {
 		printf("[Debug]: <-- Http %d\n", ret);
@@ -88,7 +88,7 @@ void HttpProxy::OnRecv(char* data, int len) {
 		if (!_http_handler) {
 			printf("[Error]: 收到了错误的请求\n");
 			dump(http_str);
-			OnClose();
+			// OnClose();
 			_server_conn->remove_hp(_sid);
 		}
 		else {
