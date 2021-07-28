@@ -107,7 +107,7 @@ namespace GNET {
             return bn;
         }
 
-        int Recv(char* data, size_t len) {
+        int Recv(char* data, size_t len){
             int ret = 0;
 #ifdef __linux
             do{
@@ -117,18 +117,53 @@ namespace GNET {
             ret = recv(_sock_fd, data, len, 0);
 #endif
             return ret;
-        };
-
-        int Send(char* data, size_t len) {
-            return send(_sock_fd, data, len, 0);
         }
 
-        // 发送包，返回发送出去的数据，不包含长度数据的长度
-        int SendPacket(char* data, size_t len) {
+        // 保证接受完 len 长度的数据才返回
+        int RecvN(char* data, size_t len) {
+            int ret = 0;
+            int real_recv = 0;
+            do{
+                ret = Recv(data + real_recv, len - real_recv);
+                if (ret <= 0){return ret;}
+                real_recv += ret;
+            }while(real_recv != len);
+            return real_recv;
+        };
+        
+        int Send(char* data, size_t len){
+            int ret = 0;
+            ret = send(_sock_fd, data, len, 0);
+            if (ret != len){
+                printf("[!!!!!!!!] Send:  ret/len: %d/%ld\n",ret, len);
+            }
+            return ret;
+        }
+
+        // 不发送完len长度的数据绝不返回 除非接收错误
+        int SendN(char* data, size_t len){
+            int ret = 0;
+            int real_send = 0; // 总共发送的数据
+            do{
+                ret = Send(data + real_send, len - real_send);
+                if(ret <= 0){return ret;}
+                real_send += ret;
+            }while(real_send != len);
+            return real_send;
+        }
+
+        // 发送包，返回发送出去的数据，不包含长度数据的长度 N == true 的时候保证数据一定会发完再返回
+        // 这里不太方便使用接收的那种处理方式，因为发送一般只调用一次
+        int SendPacket(char* data, size_t len, bool N = false) {
             BasePacket* tmp = (BasePacket*) malloc(len + sizeof(unsigned short int));
             tmp->data_len = len;
             memcpy(tmp->data, data, len);
-            int ret = Send((char*)tmp, len + sizeof(unsigned short int));
+            int ret = 0;
+            if (N){
+                ret = SendN((char*)tmp, len + sizeof(unsigned short int));
+            }else{
+                ret = Send((char*)tmp, len + sizeof(unsigned short int));
+            }
             free(tmp);
             return ret;
         };
@@ -150,7 +185,6 @@ namespace GNET {
                 return -1;
             }else{
                 int ret = Recv(data + _packet_pos, _packet_size - _packet_pos);
-                printf("[Debug]: 接收%d/%d\n", ret, (_packet_size-_packet_pos));
                 if (ret <= 0){return 0;}
                 
                 if (ret != (_packet_size-_packet_pos)){   // 还没有接收完
@@ -160,7 +194,6 @@ namespace GNET {
                     int pp = _packet_size;
                     _packet_size = 0;
                     _packet_pos = 0;
-                    printf("[Debug]: 离谱 %d\n", pp);
                     return pp;
                 }
             }
@@ -293,12 +326,16 @@ namespace GNET {
 #endif
         }
 
+#ifdef __linux
+        ;
+#else
         static void update_fds() {
             FD_ZERO(&_read_fds);
             for (auto iter : _read_fds_map) {
                 FD_SET(iter.first, &_read_fds);
             }
         }
+#endif
 
         static void loop_poll() {
             printf("[Debug]: 进入poll循环\n");

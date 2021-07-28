@@ -18,7 +18,7 @@ void RequestHandle::OnRecv(){
     char* send_data = pk->get_p();
     // pk->dump();
     if (send_data){
-        int ret = _client_bn->SendPacket(send_data, pk->get_packet_len());
+        int ret = _client_bn->SendPacket(send_data, pk->get_packet_len(), true);
         printf("[Debug]: --> Client %d\n", ret);
     }else{
         printf("[Warning]: 组装数据包失败 buff=%p, _sid=%d, len=%d\n", buff, _sid, len);
@@ -59,7 +59,7 @@ void ClientHandle::OnRecv(){
     // pk->dump();
     GNET::BaseNet* bn = fetch_bn(pk->get_sid());
     if(bn){
-        int ret = bn->Send(pk->get_data(), pk->get_data_len());
+        int ret = bn->SendN(pk->get_data(), pk->get_data_len());
         printf("[Debug]: --> Request %d sid=%d\n", ret, pk->get_sid());
     }else{
         printf("[Warning]: 没有找到 sid=%d 的会话, len=%d\n", pk->get_sid(), len);
