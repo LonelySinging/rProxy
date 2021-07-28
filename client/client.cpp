@@ -15,7 +15,7 @@ void ServerConn::OnRecv() {
 		OnClose();
 		GNET::Poll::deregister_poll(this);
 		GNET::Poll::stop_poll();
-		printf("[Info]: 与服务器断开 ret=%d\n", ret);
+		printf("[Info]: 与服务器断开 ret=[%d]\n", ret);
 		// 还需要关闭与http服务器的连接
 		delete this;
 		return;
@@ -28,7 +28,7 @@ void ServerConn::OnRecv() {
 	//pk->dump();
 	unsigned short int sid = pk->get_sid();
 
-	printf("[Debug]: <-- Server %d\n", ret);
+	printf("[Debug]: <-- Server %d [%d]\n", ret, sid);
 
 	map<int, HttpProxy*>::iterator iter = _hps.find(sid);
 	if (iter == _hps.end()) {

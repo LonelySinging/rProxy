@@ -7,16 +7,16 @@ void HandleHttp::OnRecv() {
 	char* buff = (char*)malloc(Packet::DATA_SIZE);	// 可以作为一个常备缓冲区
 	int ret = Recv(buff, Packet::DATA_SIZE);
 	if (ret <= 0) {
-		printf("[Debug]: 接收结束 ret=%d sid=%d\n", ret, _sid);
+		printf("[Debug]: 接收结束 ret=%d sid=[%d]\n", ret, _sid);
 		_server_conn->remove_hp(_sid);	// 结束 handle
 	}else {
-		printf("[Debug]: <-- Http %d\n", ret);
+		printf("[Debug]: <-- Http %d [%d]\n", ret, _sid);
 		Packet* pk = new Packet(_sid, ret, buff);
 		if ((ret=_server_conn->SendPacket(pk->get_p(), pk->get_packet_len())) <= 0) {
-			printf("[Error]: 发送错误 sid=%d\n", _sid);
+			printf("[Error]: 发送错误 sid=[%d]\n", _sid);
 			_server_conn->remove_hp(_sid);	// 结束 handle
 		}
-		printf("[Debug]: --> Server %d\n", ret);
+		printf("[Debug]: --> Server %d [%d]\n", ret, _sid);
 		delete pk;
 	}
 	free(buff);
@@ -37,7 +37,7 @@ void HttpProxy::OnRecv(char* data, int len) {
 			_http_handler = new HandleHttp(ip, port, _server_conn, _sid);	// 与http服务端建立连接
 			if (!_http_handler->IsError()) {
 				if (_http_handler->Send((char*)hh.rewrite_header().c_str(), http_str.length()) <= 0) {
-					printf("[Error]: 发送到http失败 sid=%d\n", _sid);
+					printf("[Error]: 发送到http失败 sid=[%d]\n", _sid);
 				}
 				else {
 					GNET::Poll::register_poll(_http_handler);
@@ -45,13 +45,13 @@ void HttpProxy::OnRecv(char* data, int len) {
 				}
 			}
 			else {
-				printf("[Debug]: 连接http失败 %s:%d\n", ip,port);
+				printf("[Debug]: 连接http失败 %s:%d [%d]\n", ip,port, _sid);
 			}
 		}
 		else {
-			printf("[Error]: 域名解析失败 %s:%d\n", hh.get_host().c_str(), hh.get_port());
+			printf("[Error]: 域名解析失败 %s:%d [%d]\n", hh.get_host().c_str(), hh.get_port(), _sid);
 		}
-		printf("[Info]: 结束会话 %d\n", _sid);
+		printf("[Info]: 结束会话 [%d]\n", _sid);
 		_server_conn->remove_hp(_sid);
 	}
 	else if (http_str.find("CONNECT") == 0) {	// https 请求
@@ -63,10 +63,10 @@ void HttpProxy::OnRecv(char* data, int len) {
 			if (!_http_handler->IsError()) {
 				Packet* pk = new Packet(_sid, strlen("HTTP/1.1 200 Connection established\r\n\r\n"), "HTTP/1.1 200 Connection established\r\n\r\n");
 				int ret = _server_conn->SendPacket(pk->get_p(), pk->get_packet_len());
-				printf("[Debug]: 发送认证 %d\n", ret);
+				printf("[Debug]: 发送认证 %d [%d]\n", ret, _sid);
 				delete pk;
 				if (ret <= 0) {
-					printf("[Error]: 发送到Server失败 sid=%d\n", _sid);	// 需要怎么处理？现在是与服务端断开了...
+					printf("[Error]: 发送到Server失败 sid=[%d]\n", _sid);	// 需要怎么处理？现在是与服务端断开了...
 					_server_conn->OnClose();							// 与服务端断开了 开始收尸吧
 				}
 				else {
@@ -75,18 +75,18 @@ void HttpProxy::OnRecv(char* data, int len) {
 				}
 			}
 			else {
-				printf("[Debug]: 连接http失败 %s:%d\n", ip, port);
+				printf("[Debug]: 连接http失败 %s:%d [%d]\n", ip, port, _sid);
 			}
 		}
 		else {
-			printf("[Error]: 域名解析失败 %s:%d\n", hh.get_host().c_str(), hh.get_port());
+			printf("[Error]: 域名解析失败 %s:%d [%d]\n", hh.get_host().c_str(), hh.get_port(), _sid);
 		}
 		printf("[Info]: 结束会话 %d\n", _sid);
 		_server_conn->remove_hp(_sid);	// 暂时不处理 https
 	}
 	else {
 		if (!_http_handler) {
-			printf("[Error]: 收到了错误的请求\n");
+			printf("[Error]: 收到了错误的请求 [%d]\n", _sid);
 			dump(http_str);
 			// OnClose();
 			_server_conn->remove_hp(_sid);
@@ -95,7 +95,7 @@ void HttpProxy::OnRecv(char* data, int len) {
 			//Packet* pk = new Packet(_sid, len, data);
 			len = _http_handler->Send(data, len);
 			//delete pk;
-			printf("[Debug]: --> Http %d\n", len);
+			printf("[Debug]: --> Http %d [%d]\n", len, _sid);
 		}
 	}
 }
