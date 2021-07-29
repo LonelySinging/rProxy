@@ -1,10 +1,9 @@
-#include <iostream>
-#include <stdlib.h>
-
-
 #include "client.h"
 #include "httpheader.h"
-#include "../common/types.h"
+
+
+#include <iostream>
+#include <stdlib.h>
 
 using namespace std;
 
@@ -34,9 +33,11 @@ void ServerConn::OnRecv() {
 	if (sid == 0) {		// 这是个控制指令
 		switch (((CMD::cmd_dis_connect*)pk->get_p())->_type) {
 		case CMD::CMD_END_SESSION:
+		{
 			int s = ((CMD::cmd_dis_connect*)pk->get_p())->_sid;
 			remove_hp(s);
 			break;
+		}
 		default:
 			break;
 		}

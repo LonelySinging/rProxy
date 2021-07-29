@@ -1,6 +1,5 @@
 #include "httproxy.h"
 #include "httpheader.h"
-#include "../common/types.h"
 
 using std::string;
 

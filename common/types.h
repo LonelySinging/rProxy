@@ -6,7 +6,7 @@
 typedef unsigned short int us16;
 
 #ifdef __linux
-
+	;
 #else	// windows
 void perror(const char* str) {
 	printf("%s",str);
@@ -14,9 +14,7 @@ void perror(const char* str) {
 
 #endif
 
-
-
-namespace CMD {	// ¿ØÖÆÖ¸ÁîµÄsidÍ³Ò»Îª0
+namespace CMD {	// æ§åˆ¶æŒ‡ä»¤çš„sidç»Ÿä¸€ä¸º0
 	enum {
 		ERR_SUCCESS = 0,
 		ERR_ERROR,
@@ -28,11 +26,11 @@ namespace CMD {	// ¿ØÖÆÖ¸ÁîµÄsidÍ³Ò»Îª0
 
 	typedef struct {
         us16 _raw_sid = 0;
-		us16 _type;	// ÉÏÃæµÄÃ¶¾Ù
+		us16 _type;	// ä¸Šé¢çš„æšä¸¾
 		us16 _sid;
 	}cmd_dis_connect;
 
-	// ¹¹ÔìÃüÁîÊı¾İ°ü
+	// æ„é€ å‘½ä»¤æ•°æ®åŒ…
 	char* MAKE_cmd_dis_connect(int sid) {
 		cmd_dis_connect* data = (cmd_dis_connect*)malloc(sizeof(cmd_dis_connect));
 		if (data) {
