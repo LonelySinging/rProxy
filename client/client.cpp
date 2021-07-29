@@ -4,6 +4,7 @@
 
 #include "client.h"
 #include "httpheader.h"
+#include "../common/types.h"
 
 using namespace std;
 
@@ -30,17 +31,34 @@ void ServerConn::OnRecv() {
 
 	printf("[Debug]: <-- Server %d [%d]\n", ret, sid);
 
-	map<int, HttpProxy*>::iterator iter = _hps.find(sid);
-	if (iter == _hps.end()) {
-		_hps[sid] = new HttpProxy(sid, this);
-		_hps[sid]->OnRecv(pk->get_data(), pk->get_data_len());
+	if (sid == 0) {		// 这是个控制指令
+		switch (((CMD::cmd_dis_connect*)pk->get_p())->_type) {
+		case CMD::CMD_END_SESSION:
+			int s = ((CMD::cmd_dis_connect*)pk->get_p())->_sid;
+			remove_hp(s);
+			break;
+		default:
+			break;
+		}
 	}
 	else {
-		_hps[sid]->OnRecv(pk->get_data(), pk->get_data_len());
+		map<int, HttpProxy*>::iterator iter = _hps.find(sid);
+		if (iter == _hps.end()) {
+			_hps[sid] = new HttpProxy(sid, this);
+			_hps[sid]->OnRecv(pk->get_data(), pk->get_data_len());
+		}
+		else {
+			_hps[sid]->OnRecv(pk->get_data(), pk->get_data_len());
+		}
 	}
-
 	free(data);
 	delete pk;
+}
+
+void ServerConn::send_cmd(char* data, int len) {
+	if (SendPacket(data, len) <= 0) {
+		OnClose();
+	}
 }
 
 void ServerConn::OnClose() {	// 重写父类方法的话，也需要实现原有 OnClose()的功能

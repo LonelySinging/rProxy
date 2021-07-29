@@ -21,6 +21,7 @@ public:
 
 	void OnClose();
 	void OnRecv();
+	void send_cmd(char* data, int len);	// ·¢ËÍ¿ØÖÆÖ¸Áî
 
 	void remove_hp(int sid);
 };

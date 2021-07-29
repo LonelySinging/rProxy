@@ -27,12 +27,15 @@ namespace CMD {	// 控制指令的sid统一为0
 	typedef struct {
 		int _type;	// 上面的枚举
 		int _sid;
-	}dis_connect;
+	}cmd_dis_connect;
 
-	char* MAKE_CMD_END_SESSION(int sid) {
-		dis_connect* data = (dis_connect*)malloc(sizeof(dis_connect));
-		data->_type = CMD_END_SESSION;
-		data->_sid = sid;
+	// 构造命令数据包
+	char* MAKE_cmd_dis_connect(int sid) {
+		cmd_dis_connect* data = (cmd_dis_connect*)malloc(sizeof(cmd_dis_connect));
+		if (data) {
+			data->_type = CMD_END_SESSION;
+			data->_sid = sid;
+		}
 		return (char*)data;
 	}
 };
