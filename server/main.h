@@ -94,7 +94,7 @@ public:
 
     void add_session(int sid, GNET::BaseNet* bn){
         _sessions[sid] = bn;
-        dump_sessions();
+        // dump_sessions();
     }
 
     void del_session(int sid){
@@ -126,6 +126,9 @@ public:
                         iter.second->get_sock());
         }
     }
+
+    void send_cmd(char* data, int len);     // 往客户端发送命令的接口
+    void OnClose();
 };
 
 

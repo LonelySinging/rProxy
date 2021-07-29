@@ -1,5 +1,7 @@
 #include "main.h"
 
+#include <types.h>
+
 using namespace std;
 
 // 1. 如果连接特别多，sid可能会冲突 
@@ -12,6 +14,7 @@ void RequestHandle::OnRecv(){
     printf("[Debug]: <-- Request %d\n", len);
     if (len <= 0){
         _client_bn->del_session(_sid);
+        _client_bn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));
         return ;
     }
     Packet* pk = new Packet(_sid, len, buff);
@@ -44,27 +47,46 @@ void ClientHandle::OnRecv(){
     int len = RecvPacket(buff, Packet::PACKET_SIZE);
     printf("[Debug]: <-- Client %d\n", len);
     if (len == 0){
-        _cl->OnClose();     // 关闭端口监听
-        del_session(-1);    // 杀掉孩子们
-        OnClose();          // 再关闭自己
-        if(_cl){delete _cl;}         // 弑父
-        delete this;        // 自杀
-        ServerListener::inc_client_count();
+        OnClose();
         return ;
     }
     if (len == -1){ // 不是个完整的数据包
         return ;
     }
     Packet* pk = new Packet(buff, len);
-    // pk->dump();
-    GNET::BaseNet* bn = fetch_bn(pk->get_sid());
-    if(bn){
-        int ret = bn->SendN(pk->get_data(), pk->get_data_len());
-        printf("[Debug]: --> Request %d sid=%d\n", ret, pk->get_sid());
+    if (pk->get_sid() == 0){    // 来自客户端的控制指令
+        switch(((CMD::cmd_dis_connect*)pk->get_p())->_type){
+        case CMD::CMD_END_SESSION:
+            del_session(((CMD::cmd_dis_connect*)pk->get_p())->_sid);
+            break;
+        default:
+            break;
+        }
     }else{
-        printf("[Warning]: 没有找到 sid=%d 的会话, len=%d\n", pk->get_sid(), len);
+        GNET::BaseNet* bn = fetch_bn(pk->get_sid());
+        if(bn){
+            int ret = bn->SendN(pk->get_data(), pk->get_data_len());
+            printf("[Debug]: --> Request %d sid=%d\n", ret, pk->get_sid());
+        }else{
+            printf("[Warning]: 没有找到 sid=%d 的会话, len=%d\n", pk->get_sid(), len);
+        }
     }
     delete pk;
+}
+
+void ClientHandle::OnClose(){
+    GNET::BaseNet::OnClose();   // 关闭与客户端的连接
+    _cl->OnClose();             // 关闭端口监听
+    del_session(-1);            // 断开所有的请求端
+    if(_cl){delete _cl;}        // 释放监听对象
+    delete this;                // 删除自己
+    ServerListener::inc_client_count(); // 减少客户端计数
+}
+
+void ClientHandle::send_cmd(char* data, int len){
+    if(SendPacket(data, len) <= 0){
+        OnClose();  // 与客户端断开了 处理后事
+    }
 }
 
 void ServerListener::OnRecv(){

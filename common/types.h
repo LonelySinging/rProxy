@@ -3,6 +3,8 @@
 #include <iostream>
 #include <stdlib.h>
 
+typedef unsigned short int us16;
+
 #ifdef __linux
 
 #else	// windows
@@ -25,8 +27,9 @@ namespace CMD {	// 控制指令的sid统一为0
 	};
 
 	typedef struct {
-		int _type;	// 上面的枚举
-		int _sid;
+        us16 _raw_sid = 0;
+		us16 _type;	// 上面的枚举
+		us16 _sid;
 	}cmd_dis_connect;
 
 	// 构造命令数据包
