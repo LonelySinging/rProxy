@@ -181,7 +181,7 @@ namespace GNET {
                     _packet_size = 0;
                     return -1;
                 }
-                printf("[Debug]: 接收到的头 %d\n", l);
+                // printf("[Debug]: 接收到的头 %d\n", l);
                 return -1;
             }else{
                 int ret = Recv(data + _packet_pos, _packet_size - _packet_pos);

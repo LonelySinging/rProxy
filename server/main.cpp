@@ -11,18 +11,18 @@ using namespace std;
 void RequestHandle::OnRecv(){
     char buff[Packet::DATA_SIZE];
     int len = Recv(buff, Packet::DATA_SIZE);
-    printf("[Debug]: <-- Request %d\n", len);
     if (len <= 0){
         _client_bn->del_session(_sid);
         _client_bn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));
         return ;
     }
     Packet* pk = new Packet(_sid, len, buff);
+    printf("[Debug]: <-- Request %d sid=%d\n", len, _sid);
     char* send_data = pk->get_p();
     // pk->dump();
     if (send_data){
         int ret = _client_bn->SendPacket(send_data, pk->get_packet_len(), true);
-        printf("[Debug]: --> Client %d\n", ret);
+        printf("[Debug]: --> Client %d sid=%d\n", ret, _sid);
     }else{
         printf("[Warning]: 组装数据包失败 buff=%p, _sid=%d, len=%d\n", buff, _sid, len);
     }
@@ -45,7 +45,6 @@ void ClientListener::OnRecv(){
 void ClientHandle::OnRecv(){
     char buff[Packet::PACKET_SIZE + 2];
     int len = RecvPacket(buff, Packet::PACKET_SIZE);
-    printf("[Debug]: <-- Client %d\n", len);
     if (len == 0){
         OnClose();
         return ;
@@ -54,6 +53,7 @@ void ClientHandle::OnRecv(){
         return ;
     }
     Packet* pk = new Packet(buff, len);
+    printf("[Debug]: <-- Client %d sid=%d\n", len, pk->get_sid());
     if (pk->get_sid() == 0){    // 来自客户端的控制指令
         switch(((CMD::cmd_dis_connect*)pk->get_p())->_type){
         case CMD::CMD_END_SESSION:
@@ -69,6 +69,7 @@ void ClientHandle::OnRecv(){
             printf("[Debug]: --> Request %d sid=%d\n", ret, pk->get_sid());
         }else{
             printf("[Warning]: 没有找到 sid=%d 的会话, len=%d\n", pk->get_sid(), len);
+            send_cmd(CMD::MAKE_cmd_dis_connect(pk->get_sid()), sizeof(CMD::cmd_dis_connect));
         }
     }
     delete pk;
