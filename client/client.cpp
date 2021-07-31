@@ -1,5 +1,6 @@
 #include "client.h"
 #include "httpheader.h"
+#include "../common/types.h"
 
 
 #include <iostream>

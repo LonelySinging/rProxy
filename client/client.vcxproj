@@ -107,6 +107,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\common\packet.cpp" />
+    <ClCompile Include="..\common\types.cpp" />
     <ClCompile Include="..\poll\rpoll.cpp" />
     <ClCompile Include="..\thread\rthread.cpp" />
     <ClCompile Include="client.cpp" />
