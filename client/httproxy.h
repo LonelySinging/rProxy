@@ -45,6 +45,7 @@ public:
 			GNET::Poll::deregister_poll(_http_handler);
 			_http_handler->OnClose();
 		}
+		_server_conn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));	// 通知服务端这个会话已经结束了
 	};
 
 	void dump(string str, int len = 35) {

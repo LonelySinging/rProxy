@@ -1,5 +1,6 @@
 #include "httproxy.h"
 #include "httpheader.h"
+#include "../common/types.h"
 
 using std::string;
 
@@ -8,7 +9,6 @@ void HandleHttp::OnRecv() {
 	int ret = Recv(buff, Packet::DATA_SIZE);
 	if (ret <= 0) {
 		printf("[Debug]: 接收结束 ret=%d sid=[%d]\n", ret, _sid);
-		_server_conn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));	// 通知服务端这个会话已经结束了
 		_server_conn->remove_hp(_sid);	// 结束 handle
 	}else {
 		printf("[Debug]: <-- Http %d [%d]\n", ret, _sid);

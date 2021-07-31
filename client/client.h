@@ -3,7 +3,6 @@
 
 #include "../poll/rpoll.h"
 #include "../common/packet.h"
-#include "../common/types.h"
 #include "httproxy.h"
 
 #include <map>
