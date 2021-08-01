@@ -1,13 +1,15 @@
 CC = g++
 CFLAG = -g -ggdb
 
-OBJ = packet.o
+OBJ = types.o
+
+all:$(OBJ)
 
 .cpp.o:
 	$(CC) $(CFLAG) -c $< -o $@
 
-packet.o: *.cpp
-#	$(CC) $(CFLAG) -o $@
+$(OBJ): *.cpp
+	$(CC) $(CFLAG) -c $< -o $@
 
 clean:
 	-rm -f *.o
