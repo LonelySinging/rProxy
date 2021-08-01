@@ -13,7 +13,6 @@ void RequestHandle::OnRecv(){
     int len = Recv(buff, Packet::DATA_SIZE);
     if (len <= 0){
         _client_bn->del_session(_sid);
-        _client_bn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));
         return ;
     }
     Packet* pk = new Packet(_sid, len, buff);
@@ -25,10 +24,18 @@ void RequestHandle::OnRecv(){
         printf("[Debug]: --> Client %d sid=%d\n", ret, _sid);
     }else{
         printf("[Warning]: 组装数据包失败 buff=%p, _sid=%d, len=%d\n", buff, _sid, len);
+        _client_bn->del_session(_sid);
     }
     delete pk;
 }
 
+void RequestHandle::OnClose(){
+    GNET::BaseNet::OnClose();
+    _client_bn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));
+    // 如果是ClentHandle因为与客户端断开导致执行这个方法，Send肯定失败 需要考虑嘛
+}
+
+// 有请求端请求连接
 void ClientListener::OnRecv(){
     BaseNet* bn = Accept();
     if (bn){
@@ -43,21 +50,23 @@ void ClientListener::OnRecv(){
 }
 
 void ClientHandle::OnRecv(){
-    char buff[Packet::PACKET_SIZE + 2];
+    char buff[Packet::PACKET_SIZE + 2]; // 栈空间做缓存似乎不是很明智
     int len = RecvPacket(buff, Packet::PACKET_SIZE);
     if (len == 0){
         OnClose();
         return ;
     }
-    if (len == -1){ // 不是个完整的数据包
+    if (len == -1){ // 不是个完整的数据包 只是接收到了包长信息
         return ;
     }
-    Packet* pk = new Packet(buff, len);
+    Packet* pk = new Packet(buff, len); // 一个完整的数据包
     printf("[Debug]: <-- Client %d sid=%d\n", len, pk->get_sid());
+    assert(pk->get_sid() < 0 || pk->get_sid() > ClientListener::MAX_SID);
     if (pk->get_sid() == 0){    // 来自客户端的控制指令
         switch(((CMD::cmd_dis_connect*)pk->get_p())->_type){
         case CMD::CMD_END_SESSION:
             del_session(((CMD::cmd_dis_connect*)pk->get_p())->_sid);
+            // 断开请求端 让他不要发东西了
             break;
         default:
             break;
@@ -65,6 +74,7 @@ void ClientHandle::OnRecv(){
     }else{
         GNET::BaseNet* bn = fetch_bn(pk->get_sid());
         if(bn){
+            // 将来SendN都应该交给线程池去做
             int ret = bn->SendN(pk->get_data(), pk->get_data_len());
             printf("[Debug]: --> Request %d sid=%d\n", ret, pk->get_sid());
         }else{
@@ -80,8 +90,10 @@ void ClientHandle::OnClose(){
     _cl->OnClose();             // 关闭端口监听
     del_session(-1);            // 断开所有的请求端
     if(_cl){delete _cl;}        // 释放监听对象
-    delete this;                // 删除自己
-    ServerListener::inc_client_count(); // 减少客户端计数
+    delete this;                // 删除自己 目前没有记录ServerListen，否则应该交给SL去做
+    ServerListener::inc_client_count(); 
+    // 减少客户端计数 不放在析构函数是因为需要把用到了ServerListener的实现，
+    // 就需要把析构函数放在cpp中实现(预定义不行)，emmmm 觉得太麻烦了
 }
 
 void ClientHandle::send_cmd(char* data, int len){
@@ -97,28 +109,24 @@ void ServerListener::OnRecv(){
         printf("[Error]: 与客户端建立连接失败\n");
         return ;
     }
-    ClientHandle *ch = new ClientHandle(*bn);
+    
+    // 因为未来需要向客户端发送错误原因，所以需要现在就包装
+    ClientHandle *ch = new ClientHandle(*bn);   
     delete bn;
-
-    GNET::Poll::register_poll(ch); // 注册客户端
 
     printf("[Info]: %s:%d, sock_fd: %d\n", ch->get_host().c_str(), ch->get_port(), ch->get_sock());
     if (_client_count >= CLIENT_COUNT){  // 超过最大数量了
-        printf("[Warning]: 客户端连接到上限了 %d\n", _client_count);
+        printf("[Warning]: 客户端连接到上限了 当前客户端数: %d\n", _client_count);
         // bn->Send(); // 发送拒绝原因
         ch->OnClose();
         delete ch;
         return ;
     }
-
-    if (_client_port > MAX_PORT){   // 超过最大端口限制
-        printf("[Warning]: 端口号超过最大限制 port: %d, MAX_PORT: %d\n",_client_port-1, MAX_PORT);
-        _client_port = START_PORT;
-    }
     
     int try_count = 0;
+    _client_port = _port + 1;   // 每次从最小端口开始尝试 应该对性能不会有很大的影响
     do{
-        if(try_count > MAX_TRY_NUM){
+        if(try_count > CLIENT_COUNT){
             printf("[Warning]: 尝试多次都失败了\n");
             // bn->Send(); // 尝试很多次都失败了
             ch->OnClose();
@@ -133,20 +141,13 @@ void ServerListener::OnRecv(){
             delete cl;
             _client_port ++;
         }else{  // 监听成功
-            GNET::Poll::register_poll(cl);
-            ch->set_client_listener(cl);
+            GNET::Poll::register_poll(ch);  // 此时才会处理客户端
+            GNET::Poll::register_poll(cl);  // 注册请求监听
+            ch->set_client_listener(cl);    // 因为需要在与客户端断开的时候关闭监听 所以需要记录
             break;
         }
-
-        if (_client_port > MAX_PORT){
-            printf("[Warning]: 端口号超过最大限制 port: %d, MAX_PORT: %d\n",_client_port-1, MAX_PORT);
-            _client_count = START_PORT;
-        }
-
     }while(1);
-
-    _client_port++;     // 出了循环表示监听成功
-    dec_client_count(); // 客户端计数+1
+    ServerListener::dec_client_count(); // 客户端计数+1
 };
 
 int ServerListener::_client_count = 0;
@@ -167,22 +168,12 @@ int main(int argv, char* args[]){
     }else{
         usege();
     }
-	
+	GNET::Poll::init();
     if((new ServerListener("0.0.0.0", port, max_client))->IsError()){
+        printf("[Error]: 创建监听失败\n");
         return -1;
     }
     
     GNET::Poll::loop_poll();
-	/*THREAD::ThreadPool::start_pool();
-	
-	for (int i=0;i<100;i++){
-		while(1){
-			if(THREAD::ThreadPool::add_task(new print(i)) == 0){
-				break;
-			}
-		}
-		// usleep(100000);
-	}*/
-
 	getchar();
 }

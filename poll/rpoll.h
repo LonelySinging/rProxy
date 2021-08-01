@@ -32,7 +32,7 @@ namespace GNET {
         MAX_CONNECT = 1024,
         LISTEN_COUNT = 50
     };
-
+    class Poll;
     class BaseNet {
     protected:
         string _host;
@@ -79,8 +79,11 @@ namespace GNET {
             printf("[Debug]: BaseNet的OnRecv()\n");
         };
 
+        // 不在析构函数中关闭套接字是因为有时delete对象保留连接的需要 所以把对象和连接分离比较好
         void OnClose() {
-            // poll::deregister_poll(this);
+            // Poll::deregister_poll(this); 
+            // 还是把BaseNet和Poll分离开吧 
+            // 也就select需要取消注册 epoll在套接字被close的时候就自己取消监听了
             if (_buffer){
                 free(_buffer);  
                 // 当套接字被关闭的时候，缓冲区肯定没用了
@@ -142,7 +145,7 @@ namespace GNET {
             int ret = 0;
             ret = send(_sock_fd, data, len, 0);
             if (ret != len){
-                printf("[!!!!!!!!] Send:  ret/len: %d/%lld\n",ret, len);
+                printf("[!!!!!!!!] Send:  ret/len: %d/%d\n",ret, (int)len);
             }
             return ret;
         }

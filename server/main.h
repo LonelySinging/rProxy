@@ -28,6 +28,7 @@ public:
     };    // 这里应该会触发 BaseNet 的拷贝构造
 
     void OnRecv();  // 来自请求端的数据
+    void OnClose();
 };
 
 
@@ -36,7 +37,7 @@ class ClientListener : public GNET::Passive{
 public:
     enum{
         MIX_SID = 1,    // 最小sid
-        MAX_SID = 1000  // 最大sid
+        MAX_SID = 6000  // 最大sid
     };
 private:
     int _session;   // 生成 sid的依据
@@ -71,9 +72,10 @@ private:
 
 public:
     ClientHandle(GNET::BaseNet& bn) 
-    : GNET::BaseNet(bn), _cl(NULL){
+    : GNET::BaseNet(bn), _cl(NULL){ // 使用默认的拷贝构造函数 浅拷贝够用了
         printf("[Info]: 与客户端 %s:%d 建立联系\n", _host.c_str(), _port);
     };
+    ~ClientHandle(){}
 
     void OnRecv();  // 来自客户端的数据
 
@@ -93,8 +95,13 @@ public:
     }
 
     void add_session(int sid, GNET::BaseNet* bn){
-        _sessions[sid] = bn;
-        // dump_sessions();
+        std::map<int, GNET::BaseNet*>::iterator iter = _sessions.find(sid);
+        if (iter == _sessions.end()){
+            assert(false && "sid重复");
+            iter->second->OnClose();    // 有6000个sid可以用，但是依旧重复了，，不应该的
+            delete iter->second;
+        }
+        _sessions[sid] = bn;    // 重复也覆盖
     }
 
     void del_session(int sid){
@@ -135,27 +142,21 @@ public:
 // 负责接收来自客户端的连接
 class ServerListener : public GNET::Passive{
 private:
-    int _client_port;
+    int _client_port;               // 记录下一个端口号
     static int _client_count;      // 活跃的客户端数
-    int START_PORT;                 // 代理监听的开始端口
     static int CLIENT_COUNT;               // 客户端的最大数量
-    int MAX_PORT;                // 最大端口号
+    int _port;
 public:
     enum{
-        // START_PORT = 7201,  // 代理监听的开始端口
         // CLIENT_COUNT = 10,     // 客户端数量数量
-        // MAX_PORT = 7210,         // 最大端口号
         MAX_TRY_NUM = 10        // 最大尝试绑定端口数
     };
-    ServerListener(string host, int port, int max_client=10):Passive(host, port){
-        if(IsError()){
-            printf("[Error]: 创建监听失败\n");
+    ServerListener(string host, int port, int max_client=10):Passive(host, port), _port(port){
+        if(IsError()){  // 连接出错就直接退出
             return ;
         }
-        START_PORT = port + 1;
         CLIENT_COUNT = max_client;
-        MAX_PORT = START_PORT + CLIENT_COUNT;
-        _client_port = START_PORT;    // 客户端监听从服务端口+1开始
+        _client_port = _port;    // 客户端监听从服务端口+1开始
         _client_count = 0;
         GNET::Poll::register_poll(this);
     };
