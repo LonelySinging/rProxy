@@ -9,11 +9,12 @@ void HandleHttp::OnRecv() {
 	int ret = Recv(buff, Packet::DATA_SIZE);
 	if (ret <= 0) {
 		printf("[Debug]: 接收结束 ret=%d sid=[%d]\n", ret, _sid);
+		// _server_conn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));	// 通知服务端这个会话已经结束了
 		_server_conn->remove_hp(_sid);	// 结束 handle
 	}else {
 		printf("[Debug]: <-- Http %d [%d]\n", ret, _sid);
 		Packet* pk = new Packet(_sid, ret, buff);
-		if ((ret=_server_conn->SendPacket(pk->get_p(), pk->get_packet_len())) <= 0) {	// 这个地方需要直接断开服务器嘛？
+		if ((ret=_server_conn->SendPacket(pk->get_p(), pk->get_packet_len())) <= 0) {
 			printf("[Error]: 发送错误 sid=[%d]\n", _sid);
 			_server_conn->remove_hp(_sid);	// 结束 handle
 		}
@@ -32,7 +33,6 @@ void HttpProxy::OnRecv(char* data, int len) {
 		// printf("[Debug]: 是 http 请求\n");
 		HttpHeader hh(http_str);
 		char ip[128] = {0};
-		;
 		int port = hh.get_port();
 		if (GetIpByName(hh.get_host().c_str(), ip) && port) {
 			_http_handler = new HandleHttp(ip, port, _server_conn, _sid);	// 与http服务端建立连接
@@ -67,7 +67,7 @@ void HttpProxy::OnRecv(char* data, int len) {
 				printf("[Debug]: 发送认证 %d [%d]\n", ret, _sid);
 				delete pk;
 				if (ret <= 0) {
-					printf("[Error]: 发送到Server失败 sid=[%d]\n", _sid);	// 需要怎么处理？现在是与服务端断开了...
+					printf("[Error]: 发送到Server失败 sid=[%d]\n", _sid);
 					_server_conn->OnClose();							// 与服务端断开了 开始收尸吧
 				}
 				else {
@@ -87,16 +87,25 @@ void HttpProxy::OnRecv(char* data, int len) {
 	}
 	else {
 		if (!_http_handler) {
-			printf("[Error]: 收到了错误的请求 [%d]\n", _sid);
+			printf("[Error]: 收到了错误的请求\n");
 			dump(http_str);
 			// OnClose();
 			_server_conn->remove_hp(_sid);
 		}
 		else {
 			//Packet* pk = new Packet(_sid, len, data);
-			len = _http_handler->Send(data, len);
+			len = _http_handler->SendN(data, len);
 			//delete pk;
 			printf("[Debug]: --> Http %d [%d]\n", len, _sid);
 		}
 	}
 }
+
+void HttpProxy::OnClose() {
+	if (_http_handler) {
+		GNET::Poll::deregister_poll(_http_handler);	// 应该在此处告诉服务端这个session结束了
+		_http_handler->OnClose();
+		delete _http_handler;
+	}
+	_server_conn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));	// 通知服务端这个会话已经结束了
+};

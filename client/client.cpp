@@ -9,7 +9,6 @@
 using namespace std;
 
 void ServerConn::OnRecv() {
-	// printf("[Debug]: OnRecv()\n");
 	char* data = (char*)malloc(Packet::PACKET_SIZE);
 	int ret = RecvPacket(data, Packet::PACKET_SIZE);
 	if (ret == 0) {
@@ -25,17 +24,18 @@ void ServerConn::OnRecv() {
 		return;
 	}
 	Packet* pk = new Packet(data, ret);
-	//printf("[Debug]: pk(sid=%d, data_len=%d, str=%s)\n", pk->get_sid(), pk->get_data_len(), pk->get_data());
-	//pk->dump();
-	unsigned short int sid = pk->get_sid();
+
+	us16 sid = pk->get_sid();
 
 	printf("[Debug]: <-- Server %d [%d]\n", ret, sid);
+	assert(sid <= 6000 && sid >= 0);
 
 	if (sid == 0) {		// 这是个控制指令
 		switch (((CMD::cmd_dis_connect*)pk->get_p())->_type) {
 		case CMD::CMD_END_SESSION:
 		{
 			int s = ((CMD::cmd_dis_connect*)pk->get_p())->_sid;
+			assert(s <= 6000 && s > 0);
 			remove_hp(s);
 			break;
 		}
@@ -132,7 +132,7 @@ int main(int argv, char* args[]) {
 	WSADATA wsaData;
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
 
-	GNET::Poll::init_select();
+	GNET::Poll::init();
 	//if ((new ServerConn("127.0.0.1", 7200))->IsError()) {
 	if ((new ServerConn(host, port))->IsError()) {
 		printf("[Error]: 连接服务器失败 \n");
