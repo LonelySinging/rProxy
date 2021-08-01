@@ -14,6 +14,8 @@
 #pragma comment(lib,"ws2_32.lib")
 #endif
 
+#include "../common/types.h"
+
 #include <string.h>
 
 #include <iostream>
@@ -61,11 +63,16 @@ namespace GNET {
         struct sockaddr_in& get_sockaddr_in() { return _addr; };
         void set_sockaddr_in(struct sockaddr_in& addr) { memcpy(&_addr, &addr, sizeof(addr)); };
 
-        BaseNet() : _flag(0), _buffer(NULL), _packet_size(0), _packet_pos(0) {};
+        BaseNet() : _flag(0), _buffer(NULL), _packet_size(0), _packet_pos(0), _sock_fd(0), _port(0) {
+            memset(&_addr, 0, sizeof(struct sockaddr_in));
+        };
         BaseNet(string host, int port) :_host(host), _port(port), _flag(0),
                                         _buffer(NULL),
                                         _packet_size(0),
-                                        _packet_pos(0){};
+                                        _packet_pos(0),
+                                        _sock_fd(0){
+            memset(&_addr, 0, sizeof(struct sockaddr_in));
+        };
         ~BaseNet() {};
 
         virtual void OnRecv() {
@@ -135,7 +142,7 @@ namespace GNET {
             int ret = 0;
             ret = send(_sock_fd, data, len, 0);
             if (ret != len){
-                printf("[!!!!!!!!] Send:  ret/len: %d/%ld\n",ret, len);
+                printf("[!!!!!!!!] Send:  ret/len: %d/%lld\n",ret, len);
             }
             return ret;
         }
@@ -155,38 +162,43 @@ namespace GNET {
         // 发送包，返回发送出去的数据，不包含长度数据的长度 N == true 的时候保证数据一定会发完再返回
         // 这里不太方便使用接收的那种处理方式，因为发送一般只调用一次
         int SendPacket(char* data, size_t len, bool N = false) {
-            BasePacket* tmp = (BasePacket*) malloc(len + sizeof(unsigned short int));
-            tmp->data_len = len;
+            if (!data || !len) { return 0; }
+            BasePacket* tmp = (BasePacket*) malloc(len + sizeof(us16));
+            if (!tmp) { return 0; }
+            tmp->data_len = (us16)len;
             memcpy(tmp->data, data, len);
             int ret = 0;
             if (N){
-                ret = SendN((char*)tmp, len + sizeof(unsigned short int));
+                ret = SendN((char*)tmp, len + sizeof(us16));
             }else{
-                ret = Send((char*)tmp, len + sizeof(unsigned short int));
+                ret = Send((char*)tmp, len + sizeof(us16));
             }
             free(tmp);
             return ret;
         };
 
-        // 返回 -1 是还没有收到完整包，应该忽略，返回0表示断开连接
+        // 返回 -1 是还没有收到完整包，应该忽略，返回0表示出错需要处理后事
         // 包真的特别大 超过了缓冲区 ... 使用的时候别这么做...
         int RecvPacket(char* data, size_t expected_len) {
+            if (!data) { return 0; }
             if (_packet_size == 0){ // 需要接收头部
-                unsigned short int l;
-                int ret = Recv((char*)&l, sizeof(unsigned short int));
+                us16 l;
+                _packet_pos = 0;
+                int ret = Recv((char*)&l, sizeof(us16));    // 先获取包的长度，需要接收两次的话，确实影响性能
                 if (ret <= 0){return 0;}
                 _packet_size = l;   // 得到包头
                 if (_packet_size > expected_len){
                     printf("[Warning]: 异常的包头大小 %d\n", l);
+                    assert(false && "异常包头");
                     _packet_size = 0;
-                    return -1;
+                    return 0;   // 包头异常表示这个连接已经没有维护的必要了 应该结束
                 }
                 // printf("[Debug]: 接收到的头 %d\n", l);
                 return -1;
             }else{
                 int ret = Recv(data + _packet_pos, _packet_size - _packet_pos);
                 if (ret <= 0){return 0;}
-                
+                assert((ret<= (_packet_size - _packet_pos)) && "接收到的长度不对");
                 if (ret != (_packet_size-_packet_pos)){   // 还没有接收完
                     _packet_pos += ret;
                     return -1;
@@ -277,21 +289,15 @@ namespace GNET {
 #endif
         static bool _running;
     public:
-        Poll() {
-            printf("[Debug]: 创建句柄\n");
+        Poll() {};
+
 #ifdef __linux
+        static void init() {
             _eph = epoll_create(MAX_CONNECT);
             if (_eph < 0) { perror("[Error]: 创建epoll错误"); }
+        }
 #else
-
-            // FD_ZERO(&_read_fds);
-#endif
-        };
-
-#ifdef __linux
-        ;
-#else
-        static void init_select() {
+        static void init() {
             _select_timeout.tv_sec = 0;
             _select_timeout.tv_usec = TIMEOUT;
             FD_ZERO(&_read_fds);
@@ -307,13 +313,11 @@ namespace GNET {
             _ev.data.ptr = bn;
             epoll_ctl(_eph, EPOLL_CTL_ADD, bn->get_sock(), &_ev);
 #else
-            // FD_SET(bn->get_sock(),&_read_fds);
-            _read_fds_map[bn->get_sock()] = bn;
+            _read_fds_map[bn->get_sock()] = bn; // 虽然注册进去了 但是可能并没有生效 这个需要select的超时
 #endif
         }
         static void deregister_poll(BaseNet* bn) {
             printf("[Debug]: 取消注册poll: %d\n", bn->get_sock());
-            // 确实有必要吗
 #ifdef __linux
             epoll_ctl(_eph, EPOLL_CTL_DEL, bn->get_sock(), NULL);
 #else
@@ -347,15 +351,12 @@ namespace GNET {
                 for (int i = 0; i < n; i++) {
                     // printf("[Debug]: loop_poll: %p\n",_events[i].data.ptr);
                     ((BaseNet*)_events[i].data.ptr)->OnRecv();  // 由多态选择具体的操作逻辑
-                    // 这个确实是多态，没有问题。但是为什么会第一次失败，就不知道了
                 }
 #else
                 // printf("[Debug]: t1=%d, t2=%d\n", _select_timeout.tv_sec, _select_timeout.tv_usec);
                 // 更新所有套接字进去
                 update_fds();
-                // fd_set tmp_fds = _read_fds;
                 int n = select(0, &_read_fds, NULL, NULL, /*&_select_timeout*/NULL);
-                // printf("[Debug]: 1: %d, 2: %d\n", _read_fds.fd_count, _read_fds.fd_array[0]);
                 if (n == SOCKET_ERROR) {
                     printf("[Error]: Select 错误 WSAGetLastError: %d\n", WSAGetLastError());
                     stop_poll();

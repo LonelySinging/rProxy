@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <iostream>
 
+#include "types.h"
+
 class Packet{
 public:
     enum{
@@ -14,23 +16,25 @@ public:
     };
 
     typedef struct {
-        unsigned short int sid;
+        us16 sid;
         char data[];
     }packet_data;
 
-    Packet(int sid, int data_len, char* data) : _pd(NULL){  // 打包
+    Packet(int sid, int data_len, char* data) : _pd(NULL), _data_len(0){  // 打包
         if (!data){return ;}
         _pd = (packet_data*)malloc(data_len + HEADER_SIZE);
+        if (!_pd) { return; }
         _pd->sid = sid;
         _data_len = data_len;
         memcpy(_pd->data, data, data_len);
     }
 
-    Packet(char* data, int len) : _pd(NULL){     // 解包
+    Packet(char* data, int len) : _pd(NULL), _data_len(0) {     // 解包
         if (!data){return ;}
         // unsigned short int sid = ((packet_data*)data)->sid;
         _data_len = len - HEADER_SIZE;
         _pd = (packet_data*)malloc(len);
+        if (!_pd) { return; }
         memcpy(_pd, data, len);
     }
 
@@ -38,8 +42,8 @@ public:
 
     packet_data* get_pd(){if(!_pd){return NULL;}return _pd;};
     char* get_p(){return (char*)get_pd();};
-    unsigned short int get_sid(){if(!_pd){return 0;}return _pd->sid;};
-    unsigned short int get_data_len(){if(!_pd){return 0;}return _data_len;};
+    us16 get_sid(){if(!_pd){return 0;}return _pd->sid;};
+    us16 get_data_len(){if(!_pd){return 0;}return _data_len;};
     char* get_data(){if(!_pd){return NULL;}return _pd->data;}
     size_t get_packet_len(){if(!_pd){return 0;}return (_data_len + HEADER_SIZE);};
 
@@ -57,8 +61,8 @@ public:
     }
 
     // 经典的打包解包方法
-    static char* Pack(int sid, int data_len, char* data);      // 打包
-    static packet_data* UnPack(char* data);                    // 解包
+    // static char* Pack(int sid, int data_len, char* data);      // 打包
+    // static packet_data* UnPack(char* data);                    // 解包
 
 private:
     packet_data* _pd;

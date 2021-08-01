@@ -2,6 +2,7 @@
 #define __TYPES_H
 #include <iostream>
 #include <stdlib.h>
+#include <assert.h>
 
 typedef unsigned short int us16;
 
