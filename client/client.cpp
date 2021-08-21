@@ -9,8 +9,7 @@
 using namespace std;
 
 void ServerConn::OnRecv() {
-	char* data = (char*)malloc(Packet::PACKET_SIZE);
-	int ret = RecvPacket(data, Packet::PACKET_SIZE);
+	int ret = RecvPacket(_buff, Packet::PACKET_SIZE);
 	if (ret == 0) {
 		OnClose();
 		GNET::Poll::deregister_poll(this);
@@ -23,7 +22,7 @@ void ServerConn::OnRecv() {
 	if (ret == -1) {	// 不完整的数据包
 		return;
 	}
-	Packet* pk = new Packet(data, ret);
+	Packet* pk = new Packet(_buff, ret);
 
 	us16 sid = pk->get_sid();
 
@@ -35,7 +34,6 @@ void ServerConn::OnRecv() {
 		case CMD::CMD_END_SESSION:
 		{
 			int s = ((CMD::cmd_dis_connect*)pk->get_p())->_sid;
-			assert(s <= 6000 && s > 0);
 			remove_hp(s);
 			break;
 		}
@@ -53,14 +51,15 @@ void ServerConn::OnRecv() {
 			_hps[sid]->OnRecv(pk->get_data(), pk->get_data_len());
 		}
 	}
-	free(data);
 	delete pk;
 }
 
 void ServerConn::send_cmd(char* data, int len) {
+	if (!data) { return; }
 	if (SendPacket(data, len) <= 0) {
-		OnClose();
+		// OnClose();
 	}
+	free(data);
 }
 
 void ServerConn::OnClose() {	// 重写父类方法的话，也需要实现原有 OnClose()的功能

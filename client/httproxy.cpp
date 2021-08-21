@@ -14,11 +14,12 @@ void HandleHttp::OnRecv() {
 	}else {
 		printf("[Debug]: <-- Http %d [%d]\n", ret, _sid);
 		Packet* pk = new Packet(_sid, ret, buff);
-		if ((ret=_server_conn->SendPacket(pk->get_p(), pk->get_packet_len())) <= 0) {
-			printf("[Error]: 发送错误 sid=[%d]\n", _sid);
-			_server_conn->remove_hp(_sid);	// 结束 handle
-		}
-		printf("[Debug]: --> Server %d [%d]\n", ret, _sid);
+		assert(ret == pk->get_data_len());
+		assert(_sid == pk->get_sid());
+		ret = _server_conn->SendPacket(pk->get_p(), pk->get_packet_len());
+		printf("[Debug]: --> Server %d [%d] plen %d\n", ret, pk->get_sid(), (int)pk->get_packet_len());
+		assert(pk->get_packet_len() <= Packet::PACKET_SIZE);
+		//assert(pk->get_packet_len() == (ret-2));
 		delete pk;
 	}
 	free(buff);
@@ -106,6 +107,7 @@ void HttpProxy::OnClose() {
 		GNET::Poll::deregister_poll(_http_handler);	// 应该在此处告诉服务端这个session结束了
 		_http_handler->OnClose();
 		delete _http_handler;
+		_http_handler = NULL;
 	}
 	_server_conn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));	// 通知服务端这个会话已经结束了
 };
