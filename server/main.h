@@ -69,13 +69,19 @@ private:
     // 记录所有与之相关的请求端
     std::map<int, GNET::BaseNet*> _sessions;    // sid, client_bn
     ClientListener* _cl;        // 监听端口套接字，用于与客户端断开时关闭端口
+    char* _buff;                // 接收缓存
 
 public:
     ClientHandle(GNET::BaseNet& bn) 
     : GNET::BaseNet(bn), _cl(NULL){ // 使用默认的拷贝构造函数 浅拷贝够用了
         printf("[Info]: 与客户端 %s:%d 建立联系\n", _host.c_str(), _port);
+        _buff = (char*)malloc(4098);
     };
-    ~ClientHandle(){}
+    ~ClientHandle(){
+        if (_buff){
+            free(_buff);
+        }
+    }
 
     void OnRecv();  // 来自客户端的数据
 
@@ -96,7 +102,7 @@ public:
 
     void add_session(int sid, GNET::BaseNet* bn){
         std::map<int, GNET::BaseNet*>::iterator iter = _sessions.find(sid);
-        if (iter == _sessions.end()){
+        if (iter != _sessions.end()){
             assert(false && "sid重复");
             iter->second->OnClose();    // 有6000个sid可以用，但是依旧重复了，，不应该的
             delete iter->second;

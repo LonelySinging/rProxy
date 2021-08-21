@@ -73,7 +73,11 @@ namespace GNET {
                                         _sock_fd(0){
             memset(&_addr, 0, sizeof(struct sockaddr_in));
         };
-        ~BaseNet() {};
+        virtual ~BaseNet() {
+            /*if (_buffer){
+                free(_buffer);
+            }*/
+        };
 
         virtual void OnRecv() {
             printf("[Debug]: BaseNet的OnRecv()\n");
@@ -85,7 +89,8 @@ namespace GNET {
             // 还是把BaseNet和Poll分离开吧 
             // 也就select需要取消注册 epoll在套接字被close的时候就自己取消监听了
             if (_buffer){
-                free(_buffer);  
+                free(_buffer);
+                _buffer = NULL;
                 // 当套接字被关闭的时候，缓冲区肯定没用了
                 // 但是因为可能copy，所以不能在析构函数中free 
                 // 否则会导致delete副本之后所有的对象_buffer失效
@@ -185,13 +190,14 @@ namespace GNET {
         int RecvPacket(char* data, size_t expected_len) {
             if (!data) { return 0; }
             if (_packet_size == 0){ // 需要接收头部
-                us16 l;
+                us16 l = 0;
                 _packet_pos = 0;
-                int ret = Recv((char*)&l, sizeof(us16));    // 先获取包的长度，需要接收两次的话，确实影响性能
+                int ret = RecvN((char*)&l, sizeof(us16));    // 先获取包的长度，需要接收两次的话，确实影响性能
                 if (ret <= 0){return 0;}
+                // assert(ret == sizeof(us16));
                 _packet_size = l;   // 得到包头
                 if (_packet_size > expected_len){
-                    printf("[Warning]: 异常的包头大小 %d\n", l);
+                    printf("[Warning]: 异常的包头大小 %d, 偏移: %d\n", l, _packet_pos);
                     assert(false && "异常包头");
                     _packet_size = 0;
                     return 0;   // 包头异常表示这个连接已经没有维护的必要了 应该结束

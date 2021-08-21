@@ -2,7 +2,7 @@ TOP = ..
 
 CC = g++
 INCLUDE = -I$(TOP)/thread -I$(TOP)/poll -I$(TOP)/common
-CFLAG = -g -ggdb -pthread
+CFLAG = -g -ggdb -pg -pthread -fsanitize=address
 
 
 AR_FLAG = -rcs

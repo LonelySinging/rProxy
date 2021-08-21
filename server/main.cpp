@@ -16,12 +16,12 @@ void RequestHandle::OnRecv(){
         return ;
     }
     Packet* pk = new Packet(_sid, len, buff);
-    printf("[Debug]: <-- Request %d sid=%d\n", len, _sid);
+    printf("[Debug]: <-- Request %d sid=%d\n", (int)pk->get_packet_len(), pk->get_sid());
     char* send_data = pk->get_p();
     // pk->dump();
     if (send_data){
         int ret = _client_bn->SendPacket(send_data, pk->get_packet_len(), true);
-        printf("[Debug]: --> Client %d sid=%d\n", ret, _sid);
+        printf("[Debug]: --> Client %d sid=%d\n", ret, pk->get_sid());
     }else{
         printf("[Warning]: 组装数据包失败 buff=%p, _sid=%d, len=%d\n", buff, _sid, len);
         _client_bn->del_session(_sid);
@@ -50,8 +50,7 @@ void ClientListener::OnRecv(){
 }
 
 void ClientHandle::OnRecv(){
-    char buff[Packet::PACKET_SIZE + 2]; // 栈空间做缓存似乎不是很明智
-    int len = RecvPacket(buff, Packet::PACKET_SIZE);
+    int len = RecvPacket(_buff, Packet::PACKET_SIZE);
     if (len == 0){
         OnClose();
         return ;
@@ -59,14 +58,14 @@ void ClientHandle::OnRecv(){
     if (len == -1){ // 不是个完整的数据包 只是接收到了包长信息
         return ;
     }
-    Packet* pk = new Packet(buff, len); // 一个完整的数据包
+    Packet* pk = new Packet(_buff, len); // 一个完整的数据包
     printf("[Debug]: <-- Client %d sid=%d\n", len, pk->get_sid());
-    assert(pk->get_sid() < 0 || pk->get_sid() > ClientListener::MAX_SID);
+    assert(pk->get_sid() >= 0 && pk->get_sid() <= ClientListener::MAX_SID);
     if (pk->get_sid() == 0){    // 来自客户端的控制指令
         switch(((CMD::cmd_dis_connect*)pk->get_p())->_type){
         case CMD::CMD_END_SESSION:
             del_session(((CMD::cmd_dis_connect*)pk->get_p())->_sid);
-            // 断开请求端 让他不要发东西了
+            // 断开请求端 让他不要发东西了 只管发 收没收到不重要
             break;
         default:
             break;
@@ -174,6 +173,7 @@ int main(int argv, char* args[]){
         return -1;
     }
     
+    // assert(false);
     GNET::Poll::loop_poll();
 	getchar();
 }

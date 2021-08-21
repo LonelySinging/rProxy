@@ -1,5 +1,5 @@
 CC = g++
-CFLAG = -g -ggdb
+CFLAG = -g -ggdb -fsanitize=address
 
 OBJ = rpoll.o
 
