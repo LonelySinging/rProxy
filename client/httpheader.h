@@ -1,4 +1,4 @@
-#ifndef __HTTPHEADER_H
+ï»¿#ifndef __HTTPHEADER_H
 #define __HTTPHEADER_H
 
 #include <iostream>
@@ -9,22 +9,22 @@
 using namespace std;
 
 /*
-	½âÎöhttp»òhttps´úÀíÇëÇóÍ·
+	è§£æhttpæˆ–httpsä»£ç†è¯·æ±‚å¤´
 */
 
 class HttpHeader {
 private:
-	string _http_str;		// ÍêÕûµÄÇëÇó (post)ÊÇ»áÔÚbody²¿·Ö´øÊı¾İµÄ
-	string _header_str;		// ²»°üº¬body
-	string _path;			// ÇëÇóµÄÂ·¾¶ Èç¹ûÊÇGETÔòÒ²´øÓĞ²ÎÊı
-	vector<string> _lines;	// ÒÔĞĞ·Ö¸î
-	map<string, string> _kv;// ¼üÖµ¶Ô·½Ê½±£´æµÄÇëÇó²ÎÊı
-	string _method;			// ÇëÇó·½·¨
-	bool _is_https;			// ÊÇ·ñÊÇhttps
+	string _http_str;		// å®Œæ•´çš„è¯·æ±‚ (post)æ˜¯ä¼šåœ¨bodyéƒ¨åˆ†å¸¦æ•°æ®çš„
+	string _header_str;		// ä¸åŒ…å«body
+	string _path;			// è¯·æ±‚çš„è·¯å¾„ å¦‚æœæ˜¯GETåˆ™ä¹Ÿå¸¦æœ‰å‚æ•°
+	vector<string> _lines;	// ä»¥è¡Œåˆ†å‰²
+	map<string, string> _kv;// é”®å€¼å¯¹æ–¹å¼ä¿å­˜çš„è¯·æ±‚å‚æ•°
+	string _method;			// è¯·æ±‚æ–¹æ³•
+	bool _is_https;			// æ˜¯å¦æ˜¯https
 	string _host;			
 	int _port;
 
-	string error_str;		// ´íÎó×Ö·û´®
+	string error_str;		// é”™è¯¯å­—ç¬¦ä¸²
 
 	int is_in(string& str, const char* _str, int start = 0) {
 		int len;
@@ -42,11 +42,11 @@ public:
 
 		int header_end = is_in(http_str, "\r\n\r\n");
 		if (header_end == -1) {
-			printf("[Warning]: ÕÒ²»µ½ÇëÇóÍ·µÄÎ²²¿\n");
+			printf("[Warning]: æ‰¾ä¸åˆ°è¯·æ±‚å¤´çš„å°¾éƒ¨\n");
 			return; 
 		}
 		_http_str = http_str;
-		_header_str = http_str.substr(0, header_end);	// »ñÈ¡ÇëÇóÍ·
+		_header_str = http_str.substr(0, header_end);	// è·å–è¯·æ±‚å¤´
 		string tmp = _header_str;
 		while (1) {
 			int line_end = tmp.find("\r\n");
@@ -79,14 +79,14 @@ public:
 		}
 		else {
 			_method = "";
-			return;	// ²»ÄÜ´¦ÀíµÄĞ­Òé
+			return;	// ä¸èƒ½å¤„ç†çš„åè®®
 		}
 
 		for (int i = 1; i < _lines.size(); i++) {
 			string& line = _lines[i];
 			int p1 = is_in(line, ":");
 			if (p1 == -1) {
-				printf("[Error]: ½âÎöÇëÇóĞĞ³ö´í: %s\n", line.c_str());
+				printf("[Error]: è§£æè¯·æ±‚è¡Œå‡ºé”™: %s\n", line.c_str());
 				return;
 			}
 			string k = line.substr(0, p1);
@@ -97,7 +97,7 @@ public:
 			_kv[k] = v;
 		}
 		// dump_kv();
-		// »ñÈ¡_path
+		// è·å–_path
 
 	}
 
@@ -138,7 +138,7 @@ public:
 		if (_host != "") {
 			return _host;
 		}
-		if (has_key("Host")) {	// connectĞ­ÒéÒ²¿ÉÄÜ»áÓĞ Host ×Ö¶Î ÓÅÏÈÊ¹ÓÃ
+		if (has_key("Host")) {	// connectåè®®ä¹Ÿå¯èƒ½ä¼šæœ‰ Host å­—æ®µ ä¼˜å…ˆä½¿ç”¨
 			string host_ip = get_value("Host");
 			int pos = is_in(host_ip, ":");
 			if (pos == -1) {
@@ -150,7 +150,7 @@ public:
 				_port = atoi(host_ip.substr(pos+1,host_ip.length()).c_str());
 			}
 		}
-		else if(_is_https){	// Ã»ÓĞHostµÄ»°£¬Ö»ÄÜÍ¨¹ı½âÎöCONNECTµÃµ½Ö÷»úÃûÁË
+		else if(_is_https){	// æ²¡æœ‰Hostçš„è¯ï¼Œåªèƒ½é€šè¿‡è§£æCONNECTå¾—åˆ°ä¸»æœºåäº†
 			string first_line = _lines[0];
 			int pos = is_in(first_line, " ");
 			if (pos == -1) {
@@ -185,8 +185,8 @@ public:
 			string tmp = _http_str;
 			int pos = tmp.find(str);
 			if (pos > tmp.length()) {
-				printf("[Warning]: ÕÒ²»µ½Í·²¿Ö÷»úÃû\n");
-				return tmp;	// ³¢ÊÔ·¢³ö
+				printf("[Warning]: æ‰¾ä¸åˆ°å¤´éƒ¨ä¸»æœºå\n");
+				return tmp;	// å°è¯•å‘å‡º
 			}
 			tmp.erase(pos, str.length());
 			return tmp;

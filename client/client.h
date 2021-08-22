@@ -1,4 +1,4 @@
-#ifndef __CLIENT_H
+ï»¿#ifndef __CLIENT_H
 #define __CLIENT_H
 
 #include "../poll/rpoll.h"
@@ -17,7 +17,7 @@ private:
 public:
 	ServerConn(string host, int port) : Active(host, port) {
 		GNET::Poll::register_poll(this);
-		_buff = (char*)malloc(4098);	// Ôİ²»¿¼ÂÇÍ¨ÓÃĞÔÎÊÌâ ÒòÎªÈ«¾ÖÖ»ÓĞÕâÃ´Ò»¸ö¶ÔÏó£¬ËùÒÔÔİÊ±²»¿¼ÂÇ¿½±´¹¹Ôìº¯Êı
+		_buff = (char*)malloc(4098);	// æš‚ä¸è€ƒè™‘é€šç”¨æ€§é—®é¢˜ å› ä¸ºå…¨å±€åªæœ‰è¿™ä¹ˆä¸€ä¸ªå¯¹è±¡ï¼Œæ‰€ä»¥æš‚æ—¶ä¸è€ƒè™‘æ‹·è´æ„é€ å‡½æ•°
 	};
 	~ServerConn() {
 		if (_buff) {
@@ -28,7 +28,7 @@ public:
 
 	void OnClose();
 	void OnRecv();
-	void send_cmd(char* data, int len);	// ·¢ËÍ¿ØÖÆÖ¸Áî
+	void send_cmd(char* data, int len);	// å‘é€æ§åˆ¶æŒ‡ä»¤
 
 	void remove_hp(int sid);
 };
