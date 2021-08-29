@@ -133,7 +133,7 @@ int main(int argv, char* args[]) {
 
 	GNET::Poll::init();
 	//if ((new ServerConn("127.0.0.1", 7200))->IsError()) {
-	if ((new ServerConn(host, port))->IsError()) {
+	if ((new ServerConn(host, port, note, token))->IsError()) {
 		printf("[Error]: 连接服务器失败 \n");
 		return -1;
 	}

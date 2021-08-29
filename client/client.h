@@ -3,6 +3,7 @@
 
 #include "../poll/rpoll.h"
 #include "../common/packet.h"
+#include "../common/types.h"
 #include "httproxy.h"
 
 #include <map>
@@ -14,10 +15,15 @@ class ServerConn : public GNET::Active {
 private:
 	map<int, HttpProxy*> _hps;
 	char* _buff;
+	char _note[CMD::cmd_login::DES_LEN] = {0};
+	char _token[CMD::cmd_login::PASSWD_LEN] = {0};
 public:
-	ServerConn(string host, int port) : Active(host, port) {
+	ServerConn(string host, int port, char* note, char* token) : Active(host, port) {
 		GNET::Poll::register_poll(this);
-		_buff = (char*)malloc(4098);	// 暂不考虑通用性问题 因为全局只有这么一个对象，所以暂时不考虑拷贝构造函数
+		_buff = (char*)malloc(Packet::PACKET_SIZE+2);	// 暂不考虑通用性问题 因为全局只有这么一个对象，所以暂时不考虑拷贝构造函数
+		if (note)memcpy(_note, note, strlen(note));
+		if (token)memcpy(_token, token, strlen(token));
+		send_cmd(CMD::MAKE_cmd_login(_token, _note), sizeof(CMD::cmd_login));
 	};
 	~ServerConn() {
 		if (_buff) {
