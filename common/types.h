@@ -43,7 +43,7 @@ namespace CMD {	// 控制指令的sid统一为0
 
 	// 构造命令数据包
 	char* MAKE_cmd_dis_connect(int sid);
-    char* MAKE_cmd_login(us16 pass_size, char* passwd,us16 des_size, char* des);
+    char* MAKE_cmd_login(char* passwd, char* des);
 };
 
 
