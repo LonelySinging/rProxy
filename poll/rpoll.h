@@ -45,7 +45,8 @@ namespace GNET {
         int _packet_pos;    // 已经接收的实际大小
     public:
         enum {
-            NET_ERROR = 0x0001     // 连接失败
+            NET_ERROR = 0x0001,     // 连接失败
+            NEED_DELETE = 0x0002    // 有这个标志的对象会在poll函数中被删除
         };
         
         // 基础包结构，只有数据大小头
@@ -223,6 +224,9 @@ namespace GNET {
         unsigned int get_flag() { return _flag; };
         void SetError() { _flag |= NET_ERROR; }
         bool IsError() { return _flag & NET_ERROR; };
+        void SetDelete() { _flag |= NEED_DELETE; }
+        bool IsDelete() { return _flag & NEED_DELETE; };
+
     };
 
     class Passive : public BaseNet {
@@ -356,10 +360,17 @@ namespace GNET {
             for (; _running;) {
 #ifdef __linux
                 int n = epoll_wait(_eph, _events, MAX_CONNECT, TIMEOUT);
-                // if(n != 0){printf("[Debug]: n=%d\n", n);};
+                BaseNet* bn;
                 for (int i = 0; i < n; i++) {
-                    // printf("[Debug]: loop_poll: %p\n",_events[i].data.ptr);
-                    ((BaseNet*)_events[i].data.ptr)->OnRecv();  // 由多态选择具体的操作逻辑
+                    bn = (BaseNet*)_events[i].data.ptr;  // 由多态选择具体的操作逻辑
+                    if (bn->IsDelete()){
+                        delete bn;
+                    }else{
+                        bn->OnRecv();
+                        if (bn->IsDelete()){
+                            delete bn;
+                        }
+                    }
                 }
 #else
                 // printf("[Debug]: t1=%d, t2=%d\n", _select_timeout.tv_sec, _select_timeout.tv_usec);
