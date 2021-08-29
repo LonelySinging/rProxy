@@ -6,6 +6,7 @@ using namespace std;
 // 1. 如果连接特别多，sid可能会冲突 
 // 2. 取消注册 poll √
 // 3. 考虑服务端直接断开会发生什么 让客户端考虑去吧
+// 4. 断开请求端之后，清理了具体对象，但是在poll的队列中，对象指针还在，被访问的话 就会出错
 
 map<int, RunStatus::ClientInfo*> RunStatus::_cis;
 char RunStatus::_passwd[CMD::cmd_login::PASSWD_LEN] = "passwd";
@@ -41,7 +42,10 @@ void RequestHandle::OnClose(){
 void ClientListener::OnRecv(){
     BaseNet* bn = Accept();
     if (bn){
-        int sid = get_sid();
+        int sid = 0;
+        do{
+            sid = get_sid();
+        }while(_client_bn->fetch_bn(sid));
         RequestHandle* rh = new RequestHandle(*bn, _client_bn, sid);
         _client_bn->add_session(sid, rh);
         GNET::Poll::register_poll(rh);
@@ -80,11 +84,14 @@ void ClientHandle::OnRecv(){
                 if (ci){
                     ci->_active = true;
                     _active = true;
+                    ci->_client_describe = string(cmd->_describe, CMD::cmd_login::DES_LEN);
+                    printf("[Info] 客户端登录成功 [%s]\n", cmd->_describe);
                 }else{
                     printf("[Warning] 找不到对应的客户端信息 server_port: %d\n", _cl->get_port());
                     OnClose();
                 }
             }else{
+                printf("[Info] 客户端登录失败 pass: %s\n", cmd->_passwd);
                 OnClose();
             }
             break;
@@ -167,7 +174,7 @@ void ServerListener::OnRecv(){
             GNET::Poll::register_poll(ch);  // 此时才会处理客户端
             GNET::Poll::register_poll(cl);  // 注册请求监听
             ch->set_client_listener(cl);    // 因为需要在与客户端断开的时候关闭监听 所以需要记录
-            RunStatus::ClientInfo* ci = RunStatus::add_client_info(new RunStatus::ClientInfo);
+            RunStatus::ClientInfo* ci = new RunStatus::ClientInfo;
             if (ci){
                 ci->_active = false;
                 ci->_server_port = _client_port;
@@ -178,7 +185,8 @@ void ServerListener::OnRecv(){
                 ci->_all_sessions = 0;
                 ci->_data_size = 0;
                 // 描述信息先不添加，保持异步处理
-            }
+                RunStatus::add_client_info(ci);
+            }else{OnClose();}
             break;
         }
     }while(1);
