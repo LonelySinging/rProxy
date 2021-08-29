@@ -1,6 +1,5 @@
 #include "main.h"
 
-#include <types.h>
 
 using namespace std;
 
@@ -8,10 +7,13 @@ using namespace std;
 // 2. 取消注册 poll √
 // 3. 考虑服务端直接断开会发生什么 让客户端考虑去吧
 
+map<int, RunStatus::ClientInfo*> RunStatus::_cis;
+char RunStatus::_passwd[CMD::cmd_login::PASSWD_LEN] = "passwd";
+
 void RequestHandle::OnRecv(){
     char buff[Packet::DATA_SIZE];
     int len = Recv(buff, Packet::DATA_SIZE);
-    if (len <= 0){
+    if (len <= 0 || !_client_bn->_active){  // 客户端没有登陆的话，不接受请求端数据
         _client_bn->del_session(_sid);
         return ;
     }
@@ -64,13 +66,34 @@ void ClientHandle::OnRecv(){
     if (pk->get_sid() == 0){    // 来自客户端的控制指令
         switch(((CMD::cmd_dis_connect*)pk->get_p())->_type){
         case CMD::CMD_END_SESSION:
+            // CMD::cmd_dis_connect* cmd = (CMD::cmd_dis_connect*)pk->get_p();
+            if (pk->get_packet_len() != sizeof(CMD::cmd_dis_connect)){OnClose();}
             del_session(((CMD::cmd_dis_connect*)pk->get_p())->_sid);
             // 断开请求端 让他不要发东西了 只管发 收没收到不重要
             break;
+        case CMD::CMD_LOGIN:    // 登录
+        {
+            CMD::cmd_login* cmd = (CMD::cmd_login*)pk->get_p();
+            if (pk->get_packet_len() != sizeof(CMD::cmd_login)){OnClose();}
+            if (RunStatus::auth_login(cmd->_passwd)){
+                RunStatus::ClientInfo* ci = RunStatus::get_client_info(_cl->get_port());
+                if (ci){
+                    ci->_active = true;
+                    _active = true;
+                }else{
+                    printf("[Warning] 找不到对应的客户端信息 server_port: %d\n", _cl->get_port());
+                    OnClose();
+                }
+            }else{
+                OnClose();
+            }
+            break;
+        }
         default:
             break;
         }
     }else{
+        if (!_active){OnClose();}   // 没有登陆不允许接收东西
         GNET::BaseNet* bn = fetch_bn(pk->get_sid());
         if(bn){
             // 将来SendN都应该交给线程池去做
@@ -85,6 +108,7 @@ void ClientHandle::OnRecv(){
 }
 
 void ClientHandle::OnClose(){
+    RunStatus::del_client_info(_cl->get_port());
     GNET::BaseNet::OnClose();   // 关闭与客户端的连接
     _cl->OnClose();             // 关闭端口监听
     del_session(-1);            // 断开所有的请求端
@@ -121,7 +145,7 @@ void ServerListener::OnRecv(){
         delete ch;
         return ;
     }
-    
+
     int try_count = 0;
     _client_port = _port + 1;   // 每次从最小端口开始尝试 应该对性能不会有很大的影响
     do{
@@ -143,6 +167,18 @@ void ServerListener::OnRecv(){
             GNET::Poll::register_poll(ch);  // 此时才会处理客户端
             GNET::Poll::register_poll(cl);  // 注册请求监听
             ch->set_client_listener(cl);    // 因为需要在与客户端断开的时候关闭监听 所以需要记录
+            RunStatus::ClientInfo* ci = RunStatus::add_client_info(new RunStatus::ClientInfo);
+            if (ci){
+                ci->_active = false;
+                ci->_server_port = _client_port;
+                ci->_client_host = ch->get_host();
+                ci->_client_port = ch->get_port();
+                ci->_login_time = time(NULL);
+                ci->_cur_sessions = 0;
+                ci->_all_sessions = 0;
+                ci->_data_size = 0;
+                // 描述信息先不添加，保持异步处理
+            }
             break;
         }
     }while(1);
@@ -168,8 +204,10 @@ int main(int argv, char* args[]){
         usege();
     }
 	GNET::Poll::init();
-    if((new ServerListener("0.0.0.0", port, max_client))->IsError()){
+    ServerListener* sl = new ServerListener("0.0.0.0", port, max_client);
+    if(sl->IsError()){
         printf("[Error]: 创建监听失败\n");
+        delete sl;
         return -1;
     }
     

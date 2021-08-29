@@ -9,9 +9,13 @@
 #endif // _LINUX
 
 #include "packet.h"
-                    
 
-#include <iostream> 
+#include <types.h>
+                   
+
+#include <iostream>
+#include <map>
+#include <time.h>
 
 using namespace std;
 
@@ -66,20 +70,24 @@ public:
 // 客户端 Handle
 class ClientHandle : public GNET::BaseNet{
 private:
+    friend RequestHandle;
+
     // 记录所有与之相关的请求端
     std::map<int, GNET::BaseNet*> _sessions;    // sid, client_bn
     ClientListener* _cl;        // 监听端口套接字，用于与客户端断开时关闭端口
     char* _buff;                // 接收缓存
+    bool _active = false;       // 是否登录 比RunStatus里面的接口判断要快
 
 public:
     ClientHandle(GNET::BaseNet& bn) 
     : GNET::BaseNet(bn), _cl(NULL){ // 使用默认的拷贝构造函数 浅拷贝够用了
         printf("[Info]: 与客户端 %s:%d 建立联系\n", _host.c_str(), _port);
-        _buff = (char*)malloc(4098);
+        _buff = (char*)malloc(Packet::PACKET_SIZE + 2);
     };
     ~ClientHandle(){
         if (_buff){
             free(_buff);
+            _buff = NULL;
         }
     }
 
@@ -183,4 +191,65 @@ public:
             printf("[Warning]: 超出客户端上限 Real/Max: %d/%d\n", _client_count, CLIENT_COUNT);
         }
     }
+};
+
+// 这个类将会记录所有的客户端信息，和统计信息
+class RunStatus{
+public:
+    typedef struct {                    // 客户端的基本属性 以端口作为索引
+        bool _active;                    // 是否登录成功
+        int _server_port;               // 服务器上面对应端口
+        string _client_host;            // 客户端IP和端口
+        int _client_port;
+        time_t _login_time;             // 连接时间戳
+        unsigned int _cur_sessions;     // 当前会话数量
+        unsigned int _all_sessions;     // 历史会话数
+        unsigned long _data_size;       // 经过的流量大小
+        string _client_describe;        // 描述
+    }ClientInfo;
+    
+    static ClientInfo* add_client_info(ClientInfo* ci){
+        if (ci == NULL){return NULL;}
+        map<int, ClientInfo*>::iterator it = _cis.find(ci->_server_port);
+        if(it == _cis.end()){
+            _cis[ci->_server_port] = ci;
+            return ci;
+        }else{
+            return NULL;
+        }
+    }
+    
+    static bool del_client_info(int port){
+        assert(port > 0 && port < 65536);
+        map<int, ClientInfo*>::iterator it = _cis.find(port);
+        if (it != _cis.end()){
+            printf("[Info]: 与客户端断开%s:%d, 释放端口: %d\n", _cis[port]->_client_host.c_str(),
+                                                                _cis[port]->_client_port, port);
+            delete _cis[port];
+            _cis.erase(it);
+        }
+        return true;
+    }
+
+    static ClientInfo* get_client_info(int port){
+        assert(port > 0 && port < 65536);
+        map<int, ClientInfo*>::iterator it = _cis.find(port);
+        if (it != _cis.end()){
+            return _cis[port];
+        }else{
+            return NULL;
+        }
+    }
+
+    static bool auth_login(char* pass){
+        if (!pass){return false;}
+        if(!strncmp(_passwd, pass, CMD::cmd_login::PASSWD_LEN)){
+            return true;
+        }
+        return false;
+    }
+    
+private:
+    static map<int, ClientInfo*> _cis;   // 保存了所有客户端信息 <端口, ci信息>
+    static char _passwd[CMD::cmd_login::PASSWD_LEN];   // 密码 将来会放到conf中
 };
