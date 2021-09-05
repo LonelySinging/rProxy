@@ -364,7 +364,7 @@ namespace GNET {
                 for (int i = 0; i < n; i++) {
                     bn = (BaseNet*)_events[i].data.ptr;  // 由多态选择具体的操作逻辑
                     if (bn->IsDelete()){
-                        delete bn;
+                        delete bn;      // 只有注册到poll列表里面的对象才会需要这里删除
                     }else{
                         bn->OnRecv();
                         if (bn->IsDelete()){

@@ -7,6 +7,7 @@ using namespace std;
 // 2. 取消注册 poll √
 // 3. 考虑服务端直接断开会发生什么 让客户端考虑去吧
 // 4. 断开请求端之后，清理了具体对象，但是在poll的队列中，对象指针还在，被访问的话 就会出错
+// 5. 最花费时间的是建立连接的时候，
 
 map<int, RunStatus::ClientInfo*> RunStatus::_cis;
 char RunStatus::_passwd[CMD::cmd_login::PASSWD_LEN] = "passwd";
@@ -119,8 +120,8 @@ void ClientHandle::OnClose(){
     GNET::BaseNet::OnClose();   // 关闭与客户端的连接
     _cl->OnClose();             // 关闭端口监听
     del_session(-1);            // 断开所有的请求端
-    if(_cl){delete _cl;}        // 释放监听对象
-    delete this;                // 删除自己 目前没有记录ServerListen，否则应该交给SL去做
+    if(_cl){_cl->SetDelete();}        // 释放监听对象
+    this->SetDelete();                // 删除自己 目前没有记录ServerListen，否则应该交给SL去做
     ServerListener::inc_client_count(); 
     // 减少客户端计数 不放在析构函数是因为需要把用到了ServerListener的实现，
     // 就需要把析构函数放在cpp中实现(预定义不行)，emmmm 觉得太麻烦了

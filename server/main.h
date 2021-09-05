@@ -123,7 +123,8 @@ public:
             std::map<int, GNET::BaseNet*>::iterator iter = _sessions.begin();
             for (;iter != _sessions.end();iter++){
                 iter->second->OnClose();
-                delete iter->second;
+                iter->second->SetDelete();  // 设置删除 会在poll循环中删除
+                // delete iter->second;
                 printf("[Info]: 结束会话 sid: %d\n", iter->first);
             }
             _sessions.clear();
@@ -131,7 +132,8 @@ public:
             std::map<int, GNET::BaseNet*>::iterator iter = _sessions.find(sid);
             if (iter != _sessions.end()){
                 iter->second->OnClose();
-                delete iter->second;
+                iter->second->SetDelete();  // 设置删除 会在poll循环中删除
+                // delete iter->second;
                 printf("[Info]: 结束会话 sid: %d\n", iter->first);
                 _sessions.erase(iter);
             }
