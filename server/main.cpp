@@ -67,7 +67,7 @@ void ClientHandle::OnRecv(){
     }
     Packet* pk = new Packet(_buff, len); // 一个完整的数据包
     printf("[Debug]: <-- Client %d sid=%d\n", len, pk->get_sid());
-    assert(pk->get_sid() >= 0 && pk->get_sid() <= ClientListener::MAX_SID);
+    assert(pk->get_sid() >= 0 && pk->get_sid() <= MAX_SID);
     if (pk->get_sid() == 0){    // 来自客户端的控制指令
         switch(((CMD::cmd_dis_connect*)pk->get_p())->_type){
         case CMD::CMD_END_SESSION:

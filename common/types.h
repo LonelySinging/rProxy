@@ -14,6 +14,11 @@ void perror(const char* str);
 
 #endif
 
+enum{
+	MIX_SID = 1,    // 最小sid
+	MAX_SID = 60000  // 最大sid
+};
+
 namespace CMD {	// 控制指令的sid统一为0
 	enum {
 		ERR_SUCCESS = 0,

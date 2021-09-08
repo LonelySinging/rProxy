@@ -39,10 +39,7 @@ public:
 // 每个客户端对应一个实例
 class ClientListener : public GNET::Passive{
 public:
-    enum{
-        MIX_SID = 1,    // 最小sid
-        MAX_SID = 6000  // 最大sid
-    };
+
 private:
     int _session;   // 生成 sid的依据
     int _client_fd;
