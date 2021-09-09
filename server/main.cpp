@@ -1,5 +1,5 @@
 #include "main.h"
-
+#include "httpd.h"
 
 using namespace std;
 
@@ -71,7 +71,6 @@ void ClientHandle::OnRecv(){
     if (pk->get_sid() == 0){    // 来自客户端的控制指令
         switch(((CMD::cmd_dis_connect*)pk->get_p())->_type){
         case CMD::CMD_END_SESSION:
-            // CMD::cmd_dis_connect* cmd = (CMD::cmd_dis_connect*)pk->get_p();
             if (pk->get_packet_len() != sizeof(CMD::cmd_dis_connect)){OnClose();}
             del_session(((CMD::cmd_dis_connect*)pk->get_p())->_sid);
             // 断开请求端 让他不要发东西了 只管发 收没收到不重要
@@ -187,7 +186,7 @@ void ServerListener::OnRecv(){
                 ci->_data_size = 0;
                 // 描述信息先不添加，保持异步处理
                 RunStatus::add_client_info(ci);
-            }else{OnClose();}
+            }
             break;
         }
     }while(1);
@@ -202,7 +201,7 @@ void usege(){
 }
 
 int main(int argv, char* args[]){
-    int port = 7200;
+    int port = 7201;
     int max_client = 10;
     if (argv == 2){
         port = atoi(args[1]);
@@ -220,7 +219,18 @@ int main(int argv, char* args[]){
         return -1;
     }
     
+    Httpd* hd = new Httpd(string("0.0.0.0"), 7200);
+    if (hd->IsError()){
+        printf("[Error]: 创建监听失败 7200\n");
+        delete hd;
+        delete sl;
+        return -2;
+    }
+
     // assert(false);
-    GNET::Poll::loop_poll();
+    GNET::Poll::loop_poll();    // 需要删除所有在poll池中的对象 需要依靠poll自己完成
 	getchar();
 }
+
+// 修改默认端口号为7201开始
+// ci申请失败之后继续逻辑
