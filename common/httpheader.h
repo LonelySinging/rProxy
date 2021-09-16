@@ -23,6 +23,7 @@ private:
 	bool _is_https;			// 是否是https
 	string _host;			
 	int _port;
+	bool _normal;			// 构造函数工作正常
 
 	string error_str;		// 错误字符串
 
@@ -36,6 +37,8 @@ private:
 public:
 	HttpHeader(string http_str) {
 		_is_https = false;
+		_normal = false;
+		_path = "";
 
 		_host = "";
 		_port = 0;
@@ -64,10 +67,10 @@ public:
 		if (_lines.size() < 1) { return ; }
 
 		string request_line = _lines[0];
-		if (request_line.find("GET") == 0) {
+		if (request_line.find("GET") == 0) {		// 之后应该使用枚举类型代替方法
 			_method = "GET";
 		}
-		else if (request_line.find("GET") == 0) {
+		else if (request_line.find("POST") == 0) {
 			_method = "POST";
 		}
 		else if (request_line.find("HEAD") == 0) {
@@ -96,9 +99,7 @@ public:
 			}
 			_kv[k] = v;
 		}
-		// dump_kv();
-		// 获取_path
-
+		_normal = true;
 	}
 
 	void dump_lines() {
@@ -202,6 +203,24 @@ public:
 
 	string get_method() {
 		return _method;
+	}
+
+	string get_path() {
+		if (!_normal) {return "";}
+		if (_path != "") {return _path;}
+
+		string & first_line = _lines[0];
+		int one_space = 0;
+		if ((one_space = is_in(first_line, " ")) == -1) {
+			return "";
+		}
+		one_space ++;
+		int two_space = 0;
+		if ((two_space = is_in(first_line, " ", one_space)) == -1) {
+			return "";
+		}
+		_path = first_line.substr(one_space, two_space - one_space);
+		return _path;
 	}
 };
 
