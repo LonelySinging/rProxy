@@ -27,14 +27,17 @@ private:
 
 	string error_str;		// 错误字符串
 
-	int is_in(string& str, const char* _str, int start = 0) {
+	
+public:
+
+static int is_in(string& str, const char* _str, int start = 0) {
 		int len;
 		if ((len = str.find(_str, start)) < str.length()) {
 			return len;
 		}
 		return -1;
 	}
-public:
+	
 	HttpHeader(string http_str) {
 		_is_https = false;
 		_normal = false;

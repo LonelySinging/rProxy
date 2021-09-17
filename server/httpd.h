@@ -13,13 +13,60 @@ using namespace std;
 
 char test_html[] = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<h1>Hello~</h1>";
 
-class ParamParse {
+class HttpParam {
 /*
-    url中的参数将会传递到这里来，不过暂时没有完成这个类的必要
+    url中的参数将会使用这种方式保存
 */
 private:
     map<string, string> _kv;
+    string _param_str;
 
+public:
+    HttpParam(){}
+
+    // 返回的是参数的数量，如果有重复的k，返回值是去重之前的数量
+    int setup(string & param_str) {
+        _param_str = param_str;
+        int p0 = 0;     // &
+        int p1 = 0;     // =
+        int kv_count = 0;
+        do {
+            p1 =  HttpHeader::is_in(_param_str, "=", p0);
+            if (p1 == -1) {break ;}
+            string k = param_str.substr(p0, p1 - p0);
+            p0 = HttpHeader::is_in(_param_str, "&");
+            p1 ++;
+            if (p1 >= _param_str.length()){return -1;}
+            if (p0 == -1){
+                string v = param_str.substr(p1, param_str.length() - p1);   // 最后一个键值对了，等号后面的都认为是v    ii=99&ee=9
+                kv_count ++;
+                _kv[k] = v;
+                break ;
+            }
+            string v = param_str.substr(p1, p0 - p1);
+            _kv[k] = v;
+            kv_count ++;
+            p0 ++;
+            if (p0 >= _param_str.length()){return -1;}
+        }while (p0 != -1);
+        return kv_count;
+    }
+
+    bool has_key(string & k){
+        map<string, string>::iterator it = _kv.find(k);
+        if (it == _kv.end()){
+            return false;
+        }
+        return true;
+    }
+
+    string get_value(string & k){
+        map<string, string>::iterator it = _kv.find(k);
+        if (it == _kv.end()){
+            return "";
+        }
+        return it->second;
+    }
 };
 
 class ActionTask {
@@ -27,7 +74,7 @@ class ActionTask {
     所有注册的Action都需要注册这里，以便实现回调
 */
 public:
-    virtual void OnRquest(ParamParse & pp){
+    virtual void OnRquest(HttpParam & pp){
         assert(false);
     }
 };
@@ -41,8 +88,28 @@ private:
 public:
     ActionManage(){};
 
+    string get_key(string & path) {
+        if (path == "") {return "";}
+        int p1 = 0;
+        if ((p1=HttpHeader::is_in(path, "?")) == -1){    // 没有找到参数
+            return "";
+        }
+        return path.substr(0, p1);
+    }
+
+    bool get_param(string & path, HttpParam & hp) {
+        if (path == "") {return false;}
+        int p1 = 0;
+        if ((p1=HttpHeader::is_in(path, "?")) == -1){    // 没有找到参数
+            return false;
+        }
+        p1 ++;
+        string param_str = path.substr(p1, path.length() - p1);
+        hp.setup(param_str);
+    }
+
     void try_call(string path){
-        map<string, ActionTask*>::iterator it = _kv.find(path);
+        map<string, ActionTask*>::iterator it = _kv.find(get_key(path));
         if (it != _kv.end()){
             // it->second->OnRquest();
         }
