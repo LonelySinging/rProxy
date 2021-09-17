@@ -147,7 +147,7 @@ namespace GNET {
             return real_recv;
         };
         
-        int Send(char* data, size_t len){
+        int Send(const char* data, size_t len){
             int ret = 0;
             ret = send(_sock_fd, data, len, 0);
             if (ret != len){

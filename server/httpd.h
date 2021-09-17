@@ -11,8 +11,6 @@
 
 using namespace std;
 
-char test_html[] = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<h1>Hello~</h1>";
-
 class HttpParam {
 /*
     url中的参数将会使用这种方式保存
@@ -74,7 +72,7 @@ class ActionTask {
     所有注册的Action都需要注册这里，以便实现回调
 */
 public:
-    virtual void OnRquest(HttpParam & pp){
+    virtual void OnRquest(HttpParam & pp, char* & data, int & data_len){
         assert(false);
     }
 };
@@ -92,7 +90,7 @@ public:
         if (path == "") {return "";}
         int p1 = 0;
         if ((p1=HttpHeader::is_in(path, "?")) == -1){    // 没有找到参数
-            return "";
+            return path;
         }
         return path.substr(0, p1);
     }
@@ -108,19 +106,32 @@ public:
         hp.setup(param_str);
     }
 
-    void try_call(string path){
+    bool try_call(string path, char* & data, int & data_len){
+        cout <<"[Debug]: try_call: "<<path<<endl;
         map<string, ActionTask*>::iterator it = _kv.find(get_key(path));
         if (it != _kv.end()){
-            // it->second->OnRquest();
+            HttpParam hp;
+            get_param(path, hp);
+            it->second->OnRquest(hp, data, data_len);
+            return true;
         }
+        return false;
     }
 
     void register_action(string key, ActionTask* at){
         map<string, ActionTask*>::iterator it = _kv.find(key);
-        if (it == _kv.end()){
+        if (it != _kv.end()){
             delete it->second;  // 如果已经注册过了，则会删除旧任务
         }
         _kv[key] = at;
+    }
+
+    void cancel_action(string key){
+        map<string, ActionTask*>::iterator it = _kv.find(key);
+        if (it != _kv.end()){
+            delete it->second;  // 如果已经注册过了，则会删除旧任务
+            _kv.erase(key);
+        }
     }
 };
 
@@ -129,16 +140,39 @@ private:
     enum{
         RECV_MAX_BUFFER = 4096
     };
+    static ActionManage _am;
     char* _buffer;
+    string html_header;
 public:
     HttpRequestHandle(GNET::BaseNet & bn) : 
         GNET::BaseNet(bn), _buffer(NULL){
             GNET::Poll::register_poll(this);    // 既然创建好对象了 那就表示连接顺利建立了
+            html_header = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
         }
     ~HttpRequestHandle(){
         if (_buffer){
             free(_buffer);
         }
+    }
+
+    // 因为需要把数据把main.cpp那边传递过来，又不想两个模块之间有太多的耦合所以还是使用老办法
+    static void register_action(string key, ActionTask* at){
+        cout << "[debug]: 注册" << key << endl;
+        _am.register_action(key, at);
+    }
+
+    string make_html(string body){
+        return (html_header+body);
+    }
+
+    int send_html(string body){
+        string send_data = html_header + body;
+        return Send(send_data.c_str(), send_data.length());
+    }
+
+    int send_html_404(){
+        string send_data = html_header + string("<h1>404</h1>");
+        return Send(send_data.c_str(), send_data.length());
     }
 
     void OnRecv(){
@@ -153,9 +187,23 @@ public:
         }
         HttpHeader *hh = new HttpHeader(string(_buffer));
         // printf ("[Info]: 从浏览器接收到的信息: \n %s\n", _buffer);
+
+        char* data = NULL;
+        int data_len = 0;
+        if (_am.try_call(hh->get_path(), data, data_len)){
+            send_html(string(data, data_len));
+        }else{
+            send_html_404();
+        }
+
+        if (data){
+            free(data);
+            data = NULL;
+            data_len = 0;
+        }
         
         cout << "[Info]: 请求Path " << hh->get_path() << endl;
-        Send(test_html, strlen(test_html));
+        // Send(html_header, strlen(html_header));
         OnClose();
         delete hh;
     }
@@ -185,6 +233,4 @@ public:
         GNET::BaseNet::OnClose();
     }
 }; 
-
-
 #endif

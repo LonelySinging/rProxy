@@ -2,7 +2,6 @@
 #include <rthread.h>
 #include <rpoll.h>
 #include <unistd.h> 
-
 #else
 #include "thread/rthread.h"
 #include "poll/rpoll.h"
@@ -16,6 +15,8 @@
 #include <iostream>
 #include <map>
 #include <time.h>
+
+#include "httpd.h"
 
 using namespace std;
 
@@ -151,52 +152,11 @@ public:
     void OnClose();
 };
 
-
-// 负责接收来自客户端的连接
-class ServerListener : public GNET::Passive{
-private:
-    int _client_port;               // 记录下一个端口号
-    static int _client_count;      // 活跃的客户端数
-    static int CLIENT_COUNT;               // 客户端的最大数量
-    int _port;
-public:
-    enum{
-        // CLIENT_COUNT = 10,     // 客户端数量数量
-        MAX_TRY_NUM = 10        // 最大尝试绑定端口数
-    };
-    ServerListener(string host, int port, int max_client=10):Passive(host, port), _port(port){
-        if(IsError()){  // 连接出错就直接退出
-            return ;
-        }
-        CLIENT_COUNT = max_client;
-        _client_port = _port;    // 客户端监听从服务端口+1开始
-        _client_count = 0;
-        GNET::Poll::register_poll(this);
-    };
-
-    void OnRecv();
-
-    int get_client_count(){return _client_count;}
-    static void inc_client_count(){
-        _client_count--;
-        if(_client_count < 0){
-            printf("[Warning]: 客户端计数小于0\n");
-            _client_count = 0;
-        }
-    };
-    static void dec_client_count(){
-        _client_count++;
-        if(_client_count > CLIENT_COUNT){
-            printf("[Warning]: 超出客户端上限 Real/Max: %d/%d\n", _client_count, CLIENT_COUNT);
-        }
-    }
-};
-
 // 这个类将会记录所有的客户端信息，和统计信息
 class RunStatus{
 public:
     typedef struct {                    // 客户端的基本属性 以端口作为索引
-        bool _active;                    // 是否登录成功
+        bool _active;                   // 是否登录成功
         int _server_port;               // 服务器上面对应端口
         string _client_host;            // 客户端IP和端口
         int _client_port;
@@ -222,8 +182,8 @@ public:
         assert(port > 0 && port < 65536);
         map<int, ClientInfo*>::iterator it = _cis.find(port);
         if (it != _cis.end()){
-            printf("[Info]: 与客户端断开%s:%d, 释放端口: %d\n", _cis[port]->_client_host.c_str(),
-                                                                _cis[port]->_client_port, port);
+            printf("[Info]: 与客户端断开%s:%d, 释放端口: %d\n", 
+                _cis[port]->_client_host.c_str(),_cis[port]->_client_port, port);
             delete _cis[port];
             _cis.erase(it);
         }
@@ -247,8 +207,73 @@ public:
         }
         return false;
     }
+
+    static string to_html(){
+        return "Hello, World!";
+    }
     
 private:
     static map<int, ClientInfo*> _cis;   // 保存了所有客户端信息 <端口, ci信息>
     static char _passwd[CMD::cmd_login::PASSWD_LEN];   // 密码 将来会放到conf中
 };
+
+
+class DumpRunStatusAction : public ActionTask{
+public:
+    virtual void OnRquest(HttpParam & pp, char* & data, int & data_len){
+        string html = RunStatus::to_html();
+        data_len = html.length();
+        data = (char*)malloc(data_len);
+        memcpy(data, html.data(), data_len);
+    }
+};
+
+// 负责接收来自客户端的连接
+class ServerListener : public GNET::Passive{
+private:
+    DumpRunStatusAction* _drsa;
+    int _client_port;              // 记录下一个端口号
+    static int _client_count;      // 活跃的客户端数
+    static int CLIENT_COUNT;       // 客户端的最大数量
+    int _port;
+public:
+    enum{
+        // CLIENT_COUNT = 10,     // 客户端数量数量
+        MAX_TRY_NUM = 10        // 最大尝试绑定端口数
+    };
+    ServerListener(string host, int port, int max_client=10):Passive(host, port), _port(port){
+        if(IsError()){  // 连接出错就直接退出
+            return ;
+        }
+        CLIENT_COUNT = max_client;
+        _client_port = _port;    // 客户端监听从服务端口+1开始
+        _client_count = 0;
+        GNET::Poll::register_poll(this);
+        _drsa = new DumpRunStatusAction();
+        HttpRequestHandle::register_action("/dumpState", _drsa);
+    };
+
+    ~ServerListener(){
+        delete _drsa;
+    }
+
+    void OnRecv();
+
+    int get_client_count(){return _client_count;}
+    static void inc_client_count(){
+        _client_count--;
+        if(_client_count < 0){
+            printf("[Warning]: 客户端计数小于0\n");
+            _client_count = 0;
+        }
+    };
+    static void dec_client_count(){
+        _client_count++;
+        if(_client_count > CLIENT_COUNT){
+            printf("[Warning]: 超出客户端上限 Real/Max: %d/%d\n", _client_count, CLIENT_COUNT);
+        }
+    }
+};
+
+
+

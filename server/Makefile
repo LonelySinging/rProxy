@@ -17,7 +17,7 @@ COMMON_SUBDIRS = $(TOP)/common
 COMMON_SUBOBJS = $(COMMON_SUBDIRS)/*.o
 
 # 
-OBJ = main.o
+OBJ = main.o httpd.o
 
 
 .SUFFIXES: .cpp
