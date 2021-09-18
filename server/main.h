@@ -190,6 +190,10 @@ public:
         return true;
     }
 
+    static int get_client_count(){
+        return _cis.size();
+    }
+
     static ClientInfo* get_client_info(int port){
         assert(port > 0 && port < 65536);
         map<int, ClientInfo*>::iterator it = _cis.find(port);
@@ -209,7 +213,28 @@ public:
     }
 
     static string to_html(){
-        return "Hello, World!";
+        string status_html = "<meta charset=\"utf-8\">";    // 代码是utf-8的，所以常量字符串都是
+        status_html += "当前连接数: "; status_html += to_string(get_client_count());
+        status_html += "<hr>";
+        status_html += "<table border=1px><th>监听端口</th><th>客户端IP端口</th><th>登录</th>";
+        status_html += "<th>连接时间</th><th>当前会话数</th><th>历史会话数</th>";
+        status_html += "<th>经过的流量大小</th><th>描述</th>";
+        map<int, ClientInfo*>::iterator it = _cis.begin();
+        for (;it != _cis.end();it++){
+            string trs = "<tr>";
+            trs += "<td>"; trs += to_string(it->second->_server_port);
+            trs += "</td><td>"; trs += it->second->_client_host; trs += ":"; trs += to_string(it->second->_client_port);
+            trs += "</td><td>"; trs += ((it->second->_active)?("<font color=#0F0>登录成功</font>"):("<font color=#F00>登录失败</font>"));
+            trs += "</td><td>"; trs += to_string(it->second->_login_time);
+            trs += "</td><td>"; trs += to_string(it->second->_cur_sessions);
+            trs += "</td><td>"; trs += to_string(it->second->_all_sessions);
+            trs += "</td><td>"; trs += to_string(it->second->_data_size);
+            trs += "</td><td>"; trs += it->second->_client_describe;
+            trs += "</td></tr>";
+            status_html += trs;
+        }
+        status_html += "</table>";
+        return status_html;
     }
     
 private:

@@ -107,7 +107,6 @@ public:
     }
 
     bool try_call(string path, char* & data, int & data_len){
-        cout <<"[Debug]: try_call: "<<path<<endl;
         map<string, ActionTask*>::iterator it = _kv.find(get_key(path));
         if (it != _kv.end()){
             HttpParam hp;
@@ -157,7 +156,7 @@ public:
 
     // 因为需要把数据把main.cpp那边传递过来，又不想两个模块之间有太多的耦合所以还是使用老办法
     static void register_action(string key, ActionTask* at){
-        cout << "[debug]: 注册" << key << endl;
+        cout << "[Info]: 注册" << key << endl;
         _am.register_action(key, at);
     }
 
