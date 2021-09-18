@@ -106,37 +106,9 @@ public:
         return NULL;
     }
 
-    void add_session(int sid, GNET::BaseNet* bn){
-        std::map<int, GNET::BaseNet*>::iterator iter = _sessions.find(sid);
-        if (iter != _sessions.end()){
-            assert(false && "sid重复");
-            iter->second->OnClose();    // 有6000个sid可以用，但是依旧重复了，，不应该的
-            delete iter->second;
-        }
-        _sessions[sid] = bn;    // 重复也覆盖
-    }
+    void add_session(int sid, GNET::BaseNet* bn);
 
-    void del_session(int sid){
-        if(sid == -1){
-            std::map<int, GNET::BaseNet*>::iterator iter = _sessions.begin();
-            for (;iter != _sessions.end();iter++){
-                iter->second->OnClose();
-                iter->second->SetDelete();  // 设置删除 会在poll循环中删除
-                // delete iter->second;
-                printf("[Info]: 结束会话 sid: %d\n", iter->first);
-            }
-            _sessions.clear();
-        }else{
-            std::map<int, GNET::BaseNet*>::iterator iter = _sessions.find(sid);
-            if (iter != _sessions.end()){
-                iter->second->OnClose();
-                iter->second->SetDelete();  // 设置删除 会在poll循环中删除
-                // delete iter->second;
-                printf("[Info]: 结束会话 sid: %d\n", iter->first);
-                _sessions.erase(iter);
-            }
-        }
-    }
+    void del_session(int sid);
 
     void dump_sessions(){
         for (auto iter : _sessions){
@@ -150,9 +122,11 @@ public:
 
     void send_cmd(char* data, int len);     // 往客户端发送命令的接口
     void OnClose();
+    int get_cl_port(){return _cl->get_port();}
 };
 
 // 这个类将会记录所有的客户端信息，和统计信息
+// 掉线的客户端不删除，等下次连接的时候再更新，否则断开就看不到统计数据了
 class RunStatus{
 public:
     typedef struct {                    // 客户端的基本属性 以端口作为索引
@@ -163,7 +137,8 @@ public:
         time_t _login_time;             // 连接时间戳
         unsigned int _cur_sessions;     // 当前会话数量
         unsigned int _all_sessions;     // 历史会话数
-        unsigned long _data_size;       // 经过的流量大小
+        unsigned long _recv_data_size;       // 接收的流量大小
+        unsigned long _send_data_size;       // 发送的流量大小
         string _client_describe;        // 描述
     }ClientInfo;
     
@@ -218,7 +193,7 @@ public:
         status_html += "<hr>";
         status_html += "<table border=1px><th>监听端口</th><th>客户端IP端口</th><th>登录</th>";
         status_html += "<th>连接时间</th><th>当前会话数</th><th>历史会话数</th>";
-        status_html += "<th>经过的流量大小</th><th>描述</th>";
+        status_html += "<th>接收</th><th>发送</th><th>描述</th>";
         map<int, ClientInfo*>::iterator it = _cis.begin();
         for (;it != _cis.end();it++){
             string trs = "<tr>";
@@ -228,7 +203,8 @@ public:
             trs += "</td><td>"; trs += to_string(it->second->_login_time);
             trs += "</td><td>"; trs += to_string(it->second->_cur_sessions);
             trs += "</td><td>"; trs += to_string(it->second->_all_sessions);
-            trs += "</td><td>"; trs += to_string(it->second->_data_size);
+            trs += "</td><td>"; trs += to_string(it->second->_recv_data_size);
+            trs += "</td><td>"; trs += to_string(it->second->_send_data_size);
             trs += "</td><td>"; trs += it->second->_client_describe;
             trs += "</td></tr>";
             status_html += trs;

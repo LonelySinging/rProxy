@@ -25,6 +25,9 @@ void RequestHandle::OnRecv(){
     // pk->dump();
     if (send_data){
         int ret = _client_bn->SendPacket(send_data, pk->get_packet_len(), true);
+        if (ret > 0){
+            RunStatus::get_client_info(_client_bn->get_cl_port())->_recv_data_size += ret;
+        }
         printf("[Debug]: --> Client %d sid=%d\n", ret, pk->get_sid());
     }else{
         printf("[Warning]: 组装数据包失败 buff=%p, _sid=%d, len=%d\n", buff, _sid, len);
@@ -65,6 +68,9 @@ void ClientHandle::OnRecv(){
     if (len == -1){ // 不是个完整的数据包 只是接收到了包长信息
         return ;
     }
+    
+    RunStatus::get_client_info(_cl->get_port())->_send_data_size += (len + sizeof(us16));   // 加上包头
+
     Packet* pk = new Packet(_buff, len); // 一个完整的数据包
     printf("[Debug]: <-- Client %d sid=%d\n", len, pk->get_sid());
     assert(pk->get_sid() >= 0 && pk->get_sid() <= MAX_SID);
@@ -127,10 +133,56 @@ void ClientHandle::OnClose(){
 }
 
 void ClientHandle::send_cmd(char* data, int len){
-    if(SendPacket(data, len) <= 0){
+    int ret = 0;
+    if((ret = SendPacket(data, len)) <= 0){
         OnClose();  // 与客户端断开了 处理后事
     }
+    if (ret > 0){
+        RunStatus::get_client_info(_cl->get_port())->_recv_data_size += ret;
+    }
 }
+
+void ClientHandle::add_session(int sid, GNET::BaseNet* bn){
+    std::map<int, GNET::BaseNet*>::iterator iter = _sessions.find(sid);
+    if (iter != _sessions.end()){
+        assert(false && "sid重复");
+        iter->second->OnClose();    // 有6000个sid可以用，但是依旧重复了，，不应该的
+        delete iter->second;
+    }
+    _sessions[sid] = bn;    // 重复也覆盖
+    RunStatus::get_client_info(_cl->get_port())->_cur_sessions++;
+    RunStatus::get_client_info(_cl->get_port())->_all_sessions++;
+}
+
+void ClientHandle::del_session(int sid){
+    if(sid == -1){
+        std::map<int, GNET::BaseNet*>::iterator iter = _sessions.begin();
+        for (;iter != _sessions.end();iter++){
+            iter->second->OnClose();
+            iter->second->SetDelete();  // 设置删除 会在poll循环中删除
+            // delete iter->second;
+            printf("[Info]: 结束会话 sid: %d\n", iter->first);
+            
+        }
+        if (iter != _sessions.end()) {
+            RunStatus::get_client_info(_cl->get_port())->_cur_sessions = 0;
+        }
+        _sessions.clear();
+        
+    }else{
+        std::map<int, GNET::BaseNet*>::iterator iter = _sessions.find(sid);
+        if (iter != _sessions.end()){
+            iter->second->OnClose();
+            iter->second->SetDelete();  // 设置删除 会在poll循环中删除
+            // delete iter->second;
+            printf("[Info]: 结束会话 sid: %d\n", iter->first);
+            _sessions.erase(iter);
+            RunStatus::get_client_info(_cl->get_port())->_cur_sessions--;
+        }
+        
+    }
+}
+
 
 void ServerListener::OnRecv(){
 	printf("[Info]: 有客户端连接到达\n");
@@ -183,7 +235,8 @@ void ServerListener::OnRecv(){
                 ci->_login_time = time(NULL);
                 ci->_cur_sessions = 0;
                 ci->_all_sessions = 0;
-                ci->_data_size = 0;
+                ci->_send_data_size = 0;
+                ci->_recv_data_size = 0;
                 // 描述信息先不添加，保持异步处理
                 RunStatus::add_client_info(ci);
             }

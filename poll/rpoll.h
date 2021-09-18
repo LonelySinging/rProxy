@@ -199,7 +199,7 @@ namespace GNET {
                 _packet_size = l;   // 得到包头
                 if (_packet_size > expected_len){
                     printf("[Warning]: 异常的包头大小 %d, 偏移: %d\n", l, _packet_pos);
-                    assert(false && "异常包头");
+                    // assert(false && "异常包头"); // 调试阶段需要保证逻辑正确，但是逻辑没问题之后就应该注释，否则任意的连接都将会使得服务端被关闭
                     _packet_size = 0;
                     return 0;   // 包头异常表示这个连接已经没有维护的必要了 应该结束
                 }
