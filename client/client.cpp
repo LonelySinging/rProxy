@@ -27,7 +27,7 @@ void ServerConn::OnRecv() {
 	us16 sid = pk->get_sid();
 
 	printf("[Debug]: <-- Server %d [%d]\n", ret, sid);
-	assert(sid <= MAX_SID && sid >= MIX_SID);
+	assert(sid <= MAX_SID && sid >= 0);
 
 	if (sid == 0) {		// 这是个控制指令
 		switch (((CMD::cmd_dis_connect*)pk->get_p())->_type) {
