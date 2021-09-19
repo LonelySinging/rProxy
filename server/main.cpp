@@ -121,7 +121,8 @@ void ClientHandle::OnRecv(){
 }
 
 void ClientHandle::OnClose(){
-    RunStatus::del_client_info(_cl->get_port());
+    // RunStatus::del_client_info(_cl->get_port());
+    RunStatus::get_client_info(_cl->get_port())->_active = false;
     GNET::BaseNet::OnClose();   // 关闭与客户端的连接
     _cl->OnClose();             // 关闭端口监听
     del_session(-1);            // 断开所有的请求端
@@ -162,9 +163,6 @@ void ClientHandle::del_session(int sid){
             iter->second->SetDelete();  // 设置删除 会在poll循环中删除
             // delete iter->second;
             printf("[Info]: 结束会话 sid: %d\n", iter->first);
-            
-        }
-        if (iter != _sessions.end()) {
             RunStatus::get_client_info(_cl->get_port())->_cur_sessions = 0;
         }
         _sessions.clear();
@@ -174,7 +172,6 @@ void ClientHandle::del_session(int sid){
         if (iter != _sessions.end()){
             iter->second->OnClose();
             iter->second->SetDelete();  // 设置删除 会在poll循环中删除
-            // delete iter->second;
             printf("[Info]: 结束会话 sid: %d\n", iter->first);
             _sessions.erase(iter);
             RunStatus::get_client_info(_cl->get_port())->_cur_sessions--;

@@ -142,6 +142,24 @@ public:
         string _client_describe;        // 描述
     }ClientInfo;
     
+    static string to_easyread(int b){
+        if (b < 1024){
+            return to_string(b) + "B";
+        }else if(b < (1024 * 1024)){
+            return to_string(b / 1024) + "KB";
+        }else if(b < (1024 * 1024 * 1024)){
+            return to_string(b / (1024 * 1024)) + "MB";
+        }else{                 
+            return to_string(b / (1024 * 1024 * 1024)) + "GB";      // 最大显示单位 GB
+        }
+    }
+
+    static string to_easyread_time(time_t t){
+        char tmp[32] = {0};
+        strftime(tmp, sizeof(tmp), "%Y-%m-%d %H:%M:%S", localtime(&t));
+        return string(tmp);
+    }
+
     static ClientInfo* add_client_info(ClientInfo* ci){
         if (ci == NULL){return NULL;}
         map<int, ClientInfo*>::iterator it = _cis.find(ci->_server_port);
@@ -149,16 +167,19 @@ public:
             _cis[ci->_server_port] = ci;
             return ci;
         }else{
-            return NULL;
+            // delete _cis[ci->_server_port];  
+            del_client_info(ci->_server_port);  // 删除旧的记录
+            _cis[ci->_server_port] = ci;
+            return ci;
         }
     }
     
     static bool del_client_info(int port){
-        assert(port > 0 && port < 65536);
+        assert(port > 0 && port < 65535);
         map<int, ClientInfo*>::iterator it = _cis.find(port);
         if (it != _cis.end()){
-            printf("[Info]: 与客户端断开%s:%d, 释放端口: %d\n", 
-                _cis[port]->_client_host.c_str(),_cis[port]->_client_port, port);
+            //printf("[Info]: 与客户端断开%s:%d, 释放端口: %d\n", 
+                //_cis[port]->_client_host.c_str(),_cis[port]->_client_port, port);
             delete _cis[port];
             _cis.erase(it);
         }
@@ -170,7 +191,7 @@ public:
     }
 
     static ClientInfo* get_client_info(int port){
-        assert(port > 0 && port < 65536);
+        assert(port > 0 && port < 65535);
         map<int, ClientInfo*>::iterator it = _cis.find(port);
         if (it != _cis.end()){
             return _cis[port];
@@ -199,12 +220,12 @@ public:
             string trs = "<tr>";
             trs += "<td>"; trs += to_string(it->second->_server_port);
             trs += "</td><td>"; trs += it->second->_client_host; trs += ":"; trs += to_string(it->second->_client_port);
-            trs += "</td><td>"; trs += ((it->second->_active)?("<font color=#0F0>登录成功</font>"):("<font color=#F00>登录失败</font>"));
-            trs += "</td><td>"; trs += to_string(it->second->_login_time);
+            trs += "</td><td>"; trs += ((it->second->_active)?("<font color=#0F0>正常</font>"):("<font color=#F00>离线</font>"));
+            trs += "</td><td>"; trs += to_easyread_time(it->second->_login_time);
             trs += "</td><td>"; trs += to_string(it->second->_cur_sessions);
             trs += "</td><td>"; trs += to_string(it->second->_all_sessions);
-            trs += "</td><td>"; trs += to_string(it->second->_recv_data_size);
-            trs += "</td><td>"; trs += to_string(it->second->_send_data_size);
+            trs += "</td><td>"; trs += to_easyread(it->second->_recv_data_size);
+            trs += "</td><td>"; trs += to_easyread(it->second->_send_data_size);
             trs += "</td><td>"; trs += it->second->_client_describe;
             trs += "</td></tr>";
             status_html += trs;
