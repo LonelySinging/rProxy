@@ -1,7 +1,5 @@
 #include "client.h"
-// #include "../common/httpheader.h"
 #include "../common/types.h"
-
 
 #include <iostream>
 #include <stdlib.h>
@@ -23,7 +21,6 @@ void ServerConn::OnRecv() {
 		return;
 	}
 	Packet* pk = new Packet(_buff, ret);
-
 	us16 sid = pk->get_sid();
 
 	printf("[Debug]: <-- Server %d [%d]\n", ret, sid);
@@ -42,13 +39,12 @@ void ServerConn::OnRecv() {
 		}
 	}
 	else {
-		map<int, HttpProxy*>::iterator iter = _hps.find(sid);
-		if (iter == _hps.end()) {
-			_hps[sid] = new HttpProxy(sid, this);
-			_hps[sid]->OnRecv(pk->get_data(), pk->get_data_len());
+		if (has_hp(sid)) {
+			fetch_hp(sid)->OnRecv(pk->get_data(), pk->get_data_len());
 		}
 		else {
-			_hps[sid]->OnRecv(pk->get_data(), pk->get_data_len());
+			add_hp(sid, new HttpProxy(sid, this));
+			fetch_hp(sid)->OnRecv(pk->get_data(), pk->get_data_len());
 		}
 	}
 	delete pk;
@@ -56,7 +52,7 @@ void ServerConn::OnRecv() {
 
 void ServerConn::send_cmd(char* data, int len) {
 	if (!data) { return; }
-	if (SendPacket(data, len) <= 0) {
+	if (SendPacket(data, len, true) <= 0) {
 		// OnClose();
 	}
 	free(data);
@@ -69,6 +65,7 @@ void ServerConn::OnClose() {	// 重写父类方法的话，也需要实现原有
 }
 
 void ServerConn::remove_hp(int sid) {
+	lock_guard<mutex> l(_hps_mtx);
 	if (sid == -1) {
 		map<int, HttpProxy*>::iterator iter = _hps.begin();	// 这地方不能使用递归删除，因为调用自己删除之后 这里的循环中的迭代器就失效了
 		for (; iter != _hps.end(); iter++) {
@@ -87,25 +84,23 @@ void ServerConn::remove_hp(int sid) {
 }
 
 void usage() {
-	printf("用法: \n\tclient -h IP地址 -p 端口号 -n 备注 -t 口令\n\t例子: client -h 39.106.164.33 -p 7200 -n 家里的win11 -t 123456\n\n");
+	printf("用法: \n\tclient -h IP地址 -p 端口号 -n 备注 -t 口令\n\t例子: client -h 39.106.164.33 -p 7200 -n win11 -t 123456\n\n");
 }
 
 int main(int argv, char* args[]) {
 	system("chcp 65001 && cls");
 	char* host = "39.106.164.33";
-	int port = 7200;
+	int port = 7201;
 	char* note = NULL;
 	char* token = NULL;
 
 	if (argv == 1) {
 		usage();
-	}
-	else {
+	}else {
 		for (int i = 1; i < argv; i++) {
 			if (args[i][0] == '-' || args[i][0] == '/') {	// 认为是命令
 				if (argv > (i+1)) {	// 合法范围
-					switch (args[i][1])
-					{
+					switch (args[i][1]){
 					case 'h':
 						host = args[i + 1];
 						break;

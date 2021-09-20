@@ -3,6 +3,7 @@
 namespace GNET{
 
     bool Poll::_running = true;
+    std::mutex Poll::_poll_mtx;
 #ifdef __linux
     Poll poll;
     struct epoll_event Poll::_ev;

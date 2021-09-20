@@ -7,8 +7,9 @@
 
 #include <iostream>
 #include <string>
+#include <mutex>
 
-using std::string;
+using namespace std;
 
 class HttpProxy;
 class ServerConn;
@@ -27,10 +28,11 @@ class ServerConn;
 class HttpProxy {
 private:
 	bool _is_https;
+	static mutex _mtx;
 	HandleHttp* _http_handler;
 	us16 _sid;
 	ServerConn* _server_conn;
-
+	friend class HttpConnecter;
 public:
 	HttpProxy(us16 sid, ServerConn* server_conn) :
 		_is_https(false),
@@ -54,9 +56,9 @@ public:
 		printf("\n");
 	}
 
-	// 通过域名获取IP
-	bool GetIpByName(const char* str, char ip[])
-	{
+	// 通过域名获取IP 恐怕得加锁
+	static bool GetIpByName(const char* str, char ip[]){
+		lock_guard<mutex> l(_mtx);
 		struct hostent* host = gethostbyname(str);
 		if (!host){
 			return false;

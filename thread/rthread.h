@@ -52,10 +52,54 @@ namespace THREAD{
 				~Keeper(){_mtx->unlock();};
 		};
 	};
+
+	class Runnable {		// 任务接口
+	public:
+		Runnable(int priority = 1) : _deleted(false){
+			set_priority(priority);
+		}
+		virtual ~Runnable() {}
+		virtual void run() {};
+		virtual void set_priority(int priority) {
+			if (priority > PRIORITY_MIX) { priority = 100; }
+			if (priority < PRIORITY_MAX) { priority = 0; }
+			_priority = priority;
+		};
+		virtual int get_priority() { return _priority; };
+
+		virtual void set_delete() { _deleted = true; };
+		virtual bool is_deleted() { return _deleted; };
+	private:
+		int _priority;	// 优先级，数字越小级别越高
+		bool _deleted;	// 是否需要线程池delete对象
+	};
+
+	class ThreadHelper {
+		/*
+			这个类实际上是对创建线程方法的封装，通过线程池的方式回调任务，可以避免创建线程的时候传递参数
+			需要注意 这个是线程不安全的
+		*/
+	private:
+		// static Runnable* _ra;
+
+		static void start_task(Runnable* _ra) {
+			_ra->run();
+			if (_ra->is_deleted()) {
+				delete _ra;
+			}
+		}
+		
+	public:
+		ThreadHelper(){}
+
+		static void start_thread_task(Runnable* ra) {	// 调用这个函数需要保证是线程安全的
+			std::thread(start_task, ra).detach();
+		}
+
+		
+	};
 	
 	class ThreadPool{
-	public:
-		class Runnable;
 	private:
 		static std::vector<Runnable *> _tasks; 	// 任务队列
 		static Mutex _tasks_mtx;
@@ -63,23 +107,6 @@ namespace THREAD{
 		ThreadPool(){}
 		~ThreadPool(){}
 		
-		class Runnable{		// 任务接口
-		public:
-			Runnable(int priority = 1){
-				set_priority(priority);
-			}
-			virtual ~Runnable(){}
-			virtual void run(){};
-			virtual void set_priority(int priority){
-				if(priority > PRIORITY_MIX){priority = 100;}
-				if(priority < PRIORITY_MAX){priority = 0;}
-				_priority = priority;
-			};
-			virtual int get_priority(){return _priority;};
-		private:
-			int _priority;	// 优先级，数字越小级别越高
-		};
-
 		static int add_task(Runnable *task){
 			if(_tasks.size() > TASK_MAX_COUNT){return -1;}
 			if(!task){return -2;};
@@ -143,8 +170,6 @@ namespace THREAD{
 				}
 			}
 		};
-	
-		
 	};
 }
 

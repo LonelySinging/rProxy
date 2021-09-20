@@ -20,6 +20,7 @@
 
 #include <iostream>
 #include <map>
+#include <mutex>
 
 namespace GNET {
     using std::string;
@@ -300,6 +301,7 @@ namespace GNET {
         static map<int, BaseNet*> _read_fds_map;
 
 #endif
+        static std::mutex _poll_mtx;
         static bool _running;
     public:
         Poll() {};
@@ -318,6 +320,7 @@ namespace GNET {
 #endif
 
         static void register_poll(BaseNet* bn) {
+            std::lock_guard<std::mutex> l(_poll_mtx);
             printf("[Debug]: 开始注册poll _sock_fd: %d, bn: %p\n", bn->get_sock(), bn);
 
 #ifdef __linux
@@ -330,6 +333,7 @@ namespace GNET {
 #endif
         }
         static void deregister_poll(BaseNet* bn) {
+            std::lock_guard<std::mutex> l(_poll_mtx);
             printf("[Debug]: 取消注册poll: %d\n", bn->get_sock());
 #ifdef __linux
             epoll_ctl(_eph, EPOLL_CTL_DEL, bn->get_sock(), NULL);
