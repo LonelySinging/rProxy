@@ -38,7 +38,7 @@ public:
         memcpy(_pd, data, len);
     }
 
-    ~Packet(){free(_pd);};
+    ~Packet(){if(_pd)free(_pd);};
 
     packet_data* get_pd(){if(!_pd){return NULL;}return _pd;};
     char* get_p(){return (char*)get_pd();};

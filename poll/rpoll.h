@@ -191,7 +191,7 @@ namespace GNET {
         // 包真的特别大 超过了缓冲区 ... 使用的时候别这么做...
         int RecvPacket(char* data, size_t expected_len) {
             if (!data) { return 0; }
-            if (_packet_size == 0){ // 需要接收头部
+            if (_packet_size == 0){ // 需要接收头部 不用RecvN 需要标记头部是否接收完了 <<2>>
                 us16 l = 0;
                 _packet_pos = 0;
                 int ret = RecvN((char*)&l, sizeof(us16));    // 先获取包的长度 recv返回值是1的情况确实发生了你敢信
@@ -200,7 +200,7 @@ namespace GNET {
                 _packet_size = l;   // 得到包头
                 if (_packet_size > expected_len){
                     printf("[Warning]: 异常的包头大小 %d, 偏移: %d\n", l, _packet_pos);
-                    // assert(false && "异常包头"); // 调试阶段需要保证逻辑正确，但是逻辑没问题之后就应该注释，否则任意的连接都将会使得服务端被关闭
+                    // assert(false && "异常包头"); // 调试阶段需要保证逻辑正确，但是逻辑没问题之后就应该注释，否则任意的不合法连接都将会使得服务端被关闭
                     _packet_size = 0;
                     return 0;   // 包头异常表示这个连接已经没有维护的必要了 应该结束
                 }
@@ -397,6 +397,7 @@ namespace GNET {
                 }
 #endif
             }
+            // 应该删除所有注册的对象(epoll也需要记录下来所有的注册对象否则会有内存泄漏) <<4>>
 
         }
 

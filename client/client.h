@@ -35,16 +35,17 @@ public:
 		send_cmd(CMD::MAKE_cmd_login(_token, _note), sizeof(CMD::cmd_login));	// 验证口令是否正确 如果失败会被服务端直接断开
 	};
 	~ServerConn() {
+		remove_hp(-1);
 		if (_buff) {
 			free(_buff);
 			_buff = NULL;
 		}
+		
 	};
 
 	ServerConn(ServerConn&) = delete;				// 禁用拷贝构造函数
 	ServerConn& operator=(ServerConn&) = delete;	// 也不允许拷贝
 
-	void OnClose();
 	void OnRecv();
 	void send_cmd(char* data, int len);	// 发送控制指令
 

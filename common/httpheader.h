@@ -23,14 +23,14 @@ private:
 	bool _is_https;			// 是否是https
 	string _host;			
 	int _port;
-	bool _normal;			// 构造函数工作正常
+	bool _normal;			// 构造函数工作正常 如果构造函数都失败了 http头肯定是不正确的
 
 	string error_str;		// 错误字符串
 
 	
 public:
 
-static int is_in(string& str, const char* _str, int start = 0) {
+	static int is_in(string& str, const char* _str, int start = 0) {
 		int len;
 		if ((len = str.find(_str, start)) < str.length()) {
 			return len;
@@ -42,7 +42,7 @@ static int is_in(string& str, const char* _str, int start = 0) {
 		_is_https = false;
 		_normal = false;
 		_path = "";
-
+		_method = "";
 		_host = "";
 		_port = 0;
 
@@ -58,7 +58,7 @@ static int is_in(string& str, const char* _str, int start = 0) {
 			int line_end = tmp.find("\r\n");
 			if (line_end == -1) {
 				_lines.push_back(tmp);
-				tmp.clear();
+				// tmp.clear();
 				break;
 			}
 			string line = tmp.substr(0,line_end);
@@ -67,7 +67,7 @@ static int is_in(string& str, const char* _str, int start = 0) {
 		}
 		// dump_lines();
 		
-		if (_lines.size() < 1) { return ; }
+		if (!_lines.size()) { return ; }	// 一行都没有
 
 		string request_line = _lines[0];
 		if (request_line.find("GET") == 0) {		// 之后应该使用枚举类型代替方法
@@ -112,6 +112,7 @@ static int is_in(string& str, const char* _str, int start = 0) {
 	}
 
 	bool has_key(string key) {
+		if (!_normal) { return false; };
 		map<string, string>::iterator iter = _kv.find(key);
 		if (iter == _kv.end()) {
 			return false;
@@ -122,6 +123,7 @@ static int is_in(string& str, const char* _str, int start = 0) {
 	}
 
 	string get_value(string key) {
+		if (!_normal) { return ""; };
 		map<string, string>::iterator iter = _kv.find(key);
 		if (iter == _kv.end()) {
 			return "";
@@ -132,6 +134,7 @@ static int is_in(string& str, const char* _str, int start = 0) {
 	}
 
 	void dump_kv() {
+		if (!_normal) { return ; };
 		map<string, string>::iterator iter = _kv.begin();
 		for (; iter != _kv.end(); iter++) {
 			cout <<iter->first << "-" << iter->second << endl;
@@ -139,6 +142,7 @@ static int is_in(string& str, const char* _str, int start = 0) {
 	}
 
 	string get_host() {
+		if (!_normal) { return ""; };
 		if (_host != "") {
 			return _host;
 		}
@@ -181,6 +185,7 @@ static int is_in(string& str, const char* _str, int start = 0) {
 	}
 
 	string rewrite_header() {
+		if (!_normal) { return ""; };
 		if (_is_https) {
 			return _http_str;
 		}
@@ -198,6 +203,7 @@ static int is_in(string& str, const char* _str, int start = 0) {
 	}
 
 	int get_port() {
+		if (!_normal) { return 0; };
 		if (_port == 0) {
 			get_host();
 		}

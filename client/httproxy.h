@@ -40,11 +40,18 @@ public:
 		_http_handler(NULL),
 		_server_conn(server_conn) {}
 
-	~HttpProxy() {}
+	~HttpProxy() {	// 当 HttpProxy被删除的时候_http_handler也就失去意义了 所以可以在析构函数这里删除
+		if (_http_handler) {
+			GNET::Poll::deregister_poll(_http_handler);
+			_http_handler->OnClose();
+			delete _http_handler;
+			_http_handler = NULL;
+		}
+		_server_conn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));	// 通知服务端这个会话已经结束了
+	}
 
 	// 当来数据的时候会调用它
 	void OnRecv(char* data, int len);
-	void OnClose();
 
 	void dump(string str, int len = 35) {
 		int str_len = str.length();
@@ -56,7 +63,7 @@ public:
 		printf("\n");
 	}
 
-	// 通过域名获取IP 恐怕得加锁
+	// 通过域名获取IP 需要加锁,因为gethostbyname中保存结果的结构应该是个static的数组
 	static bool GetIpByName(const char* str, char ip[]){
 		lock_guard<mutex> l(_mtx);
 		struct hostent* host = gethostbyname(str);

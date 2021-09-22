@@ -45,7 +45,7 @@ void ServerConn::OnRecv() {
 			else {
 				// 当客户端一个会话结束之后，服务端又发来一个sid，依旧被添加进来了。
 				// 这个问题不用担心，会因为_http_handler==NULL而在OnRecv()中被移除，但确实多此一举了。
-				// 考虑把remove_hp()操作放在一个地方完成。比如只会在接收到服务端结束session命令的时候才删除。
+				// 考虑把remove_hp()操作放在一个地方完成。比如只会在接收到服务端结束session命令的时候才删除。	<<1>>
 				// 如果是直接与服务端断开的话，当然还是要remove_hp(-1);以免内存泄漏
 				add_hp(sid, new HttpProxy(sid, this));
 				fetch_hp(sid)->OnRecv(pk->get_data(), pk->get_data_len());
@@ -61,11 +61,6 @@ void ServerConn::send_cmd(char* data, int len) {
 		// OnClose();
 	}
 	free(data);
-}
-
-void ServerConn::OnClose() {	// 重写父类方法的话，也需要实现原有 OnClose()的功能
-	GNET::BaseNet::OnClose();
-	remove_hp(-1);
 }
 
 void ServerConn::remove_hp(int sid) {
