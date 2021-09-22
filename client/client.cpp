@@ -13,7 +13,6 @@ void ServerConn::OnRecv() {
 		GNET::Poll::deregister_poll(this);
 		GNET::Poll::stop_poll();
 		printf("[Info]: 与服务器断开 ret=[%d]\n", ret);
-		// 还需要关闭与http服务器的连接
 		delete this;
 		return;
 	}
@@ -26,25 +25,31 @@ void ServerConn::OnRecv() {
 	printf("[Debug]: <-- Server %d [%d]\n", ret, sid);
 	assert(sid <= MAX_SID && sid >= 0);
 
-	if (sid == 0) {		// 这是个控制指令
-		switch (((CMD::cmd_dis_connect*)pk->get_p())->_type) {
-		case CMD::CMD_END_SESSION:
-		{
-			int s = ((CMD::cmd_dis_connect*)pk->get_p())->_sid;
-			remove_hp(s);
-			break;
-		}
-		default:
-			break;
-		}
-	}
-	else {
-		if (has_hp(sid)) {
-			fetch_hp(sid)->OnRecv(pk->get_data(), pk->get_data_len());
+	if (sid <= MAX_SID && sid >= 0) {	// sid不合理的话，放弃这个数据包
+		if (sid == 0) {		// 这是个控制指令
+			switch (((CMD::cmd_dis_connect*)pk->get_p())->_type) {
+			case CMD::CMD_END_SESSION:
+			{
+				int s = ((CMD::cmd_dis_connect*)pk->get_p())->_sid;
+				remove_hp(s);
+				break;
+			}
+			default:
+				break;
+			}
 		}
 		else {
-			add_hp(sid, new HttpProxy(sid, this));
-			fetch_hp(sid)->OnRecv(pk->get_data(), pk->get_data_len());
+			if (has_hp(sid)) {
+				fetch_hp(sid)->OnRecv(pk->get_data(), pk->get_data_len());
+			}
+			else {
+				// 当客户端一个会话结束之后，服务端又发来一个sid，依旧被添加进来了。
+				// 这个问题不用担心，会因为_http_handler==NULL而在OnRecv()中被移除，但确实多此一举了。
+				// 考虑把remove_hp()操作放在一个地方完成。比如只会在接收到服务端结束session命令的时候才删除。
+				// 如果是直接与服务端断开的话，当然还是要remove_hp(-1);以免内存泄漏
+				add_hp(sid, new HttpProxy(sid, this));
+				fetch_hp(sid)->OnRecv(pk->get_data(), pk->get_data_len());
+			}
 		}
 	}
 	delete pk;
@@ -59,8 +64,7 @@ void ServerConn::send_cmd(char* data, int len) {
 }
 
 void ServerConn::OnClose() {	// 重写父类方法的话，也需要实现原有 OnClose()的功能
-	GNET::BaseNet::OnClose();	// 好像这样就能调用父类方法了？
-	// 需要在此处处理与http服务器的连接 如果想要实现断线重连的话。。。应该会在main()中实现
+	GNET::BaseNet::OnClose();
 	remove_hp(-1);
 }
 
@@ -88,11 +92,13 @@ void usage() {
 }
 
 int main(int argv, char* args[]) {
-	system("chcp 65001 && cls");
+	// 因为linux默认是utf-8编码，所以代码文件是utf-8，以至于字符串常量编码也是
+	// 但是windows的控制台编码是gbk，所以会出现乱码问题
+	system("chcp 65001 && cls");	
 	char* host = "39.106.164.33";
 	int port = 7201;
-	char* note = NULL;
-	char* token = NULL;
+	char* note = NULL;		// 备注
+	char* token = NULL;		// 登录口令
 
 	if (argv == 1) {
 		usage();
@@ -111,7 +117,7 @@ int main(int argv, char* args[]) {
 						note = args[i + 1];
 						break;
 					case 't':
-						token = args[i + 1];
+						token = args[i + 1];		// 因为控制台是gbk编码，所以中文传给服务端会乱码
 						break;
 					default:
 						break;
@@ -121,6 +127,20 @@ int main(int argv, char* args[]) {
 			}
 		}
 	}
+	if (!token) {
+		if (strlen(token) > CMD::cmd_login::PASSWD_LEN) {
+			printf("[Error]: 口令长度不能大于%d\n", CMD::cmd_login::PASSWD_LEN);
+			return -2;
+		}
+	}
+
+	if (!note) {
+		if (strlen(note) > CMD::cmd_login::DES_LEN) {
+			printf("[Error]: 描述长度不能大于%d\n", CMD::cmd_login::DES_LEN);
+			return -3;
+		}
+	}
+	
 
 	// windows 特色...
 	WSADATA wsaData;

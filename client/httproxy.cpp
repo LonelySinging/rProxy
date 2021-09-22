@@ -11,7 +11,6 @@ class HttpConnecter : public THREAD::Runnable{
 	/*
 		用于把连接和传输分离开来，建立连接的时候通过线程完成，免得出现比较慢的连接过程导致客户端阻塞
 		如果使用线程池的话，极端情况下每一个连接都很慢的时候，最终还是会把线程池占满
-		*******直接通过线程实现这个 不使用ThreadHelper了
 	*/
 private:
 	string _http_str;			// 原始请求
@@ -89,7 +88,6 @@ void HandleHttp::OnRecv() {
 	int ret = Recv(buff, Packet::DATA_SIZE);
 	if (ret <= 0) {
 		printf("[Debug]: 接收结束 ret=%d sid=[%d]\n", ret, _sid);
-		// _server_conn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));	// 通知服务端这个会话已经结束了
 		_server_conn->remove_hp(_sid);	// 结束 handle
 	}else {
 		printf("[Debug]: <-- Http %d [%d]\n", ret, _sid);
@@ -130,7 +128,7 @@ void HttpProxy::OnRecv(char* data, int len) {
 
 void HttpProxy::OnClose() {
 	if (_http_handler) {
-		GNET::Poll::deregister_poll(_http_handler);	// 应该在此处告诉服务端这个session结束了
+		GNET::Poll::deregister_poll(_http_handler);
 		_http_handler->OnClose();
 		delete _http_handler;
 		_http_handler = NULL;

@@ -194,7 +194,7 @@ namespace GNET {
             if (_packet_size == 0){ // 需要接收头部
                 us16 l = 0;
                 _packet_pos = 0;
-                int ret = RecvN((char*)&l, sizeof(us16));    // 先获取包的长度，需要接收两次的话，确实影响性能
+                int ret = RecvN((char*)&l, sizeof(us16));    // 先获取包的长度 recv返回值是1的情况确实发生了你敢信
                 if (ret <= 0){return 0;}
                 // assert(ret == sizeof(us16));
                 _packet_size = l;   // 得到包头
