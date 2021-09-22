@@ -47,7 +47,7 @@ public:
 			delete _http_handler;
 			_http_handler = NULL;
 		}
-		_server_conn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));	// 通知服务端这个会话已经结束了
+		
 	}
 
 	// 当来数据的时候会调用它
