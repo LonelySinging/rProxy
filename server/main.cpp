@@ -1,6 +1,8 @@
 #include "main.h"
 #include "httpd.h"
 
+#include <signal.h>
+
 using namespace std;
 
 // 1. 如果连接特别多，sid可能会冲突 
@@ -261,6 +263,7 @@ int main(int argv, char* args[]){
     }else{
         usege();
     }
+    signal(SIGPIPE, SIG_IGN);
 	GNET::Poll::init();
     ServerListener* sl = new ServerListener("0.0.0.0", port, max_client);
     if(sl->IsError()){
