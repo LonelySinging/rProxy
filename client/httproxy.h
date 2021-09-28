@@ -17,10 +17,20 @@ class HandleHttp : public GNET::Active{
 private:
 	ServerConn* _server_conn;
 	int _sid;
+	char* _buff;
 public:
 	HandleHttp(string host, int port, ServerConn* server_conn, int sid) : GNET::Active(host, port),
 		_server_conn(server_conn),
-		_sid(sid){};
+		_sid(sid),
+		_buff(NULL){};
+	~HandleHttp() {
+		_server_conn = NULL;
+		_sid = 0;
+		if (_buff) {
+			free(_buff);
+			_buff = NULL;
+		}
+	}
 	void OnRecv();
 };
 
@@ -42,7 +52,7 @@ public:
 
 	~HttpProxy() {	// 当 HttpProxy被删除的时候_http_handler也就失去意义了 所以可以在析构函数这里删除
 		if (_http_handler) {
-			GNET::Poll::deregister_poll(_http_handler);
+			GNET::Poll::deregister_poll(_http_handler, _sid);
 			_http_handler->OnClose();
 			delete _http_handler;
 			_http_handler = NULL;

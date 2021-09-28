@@ -22,7 +22,7 @@ void ServerConn::OnRecv() {
 	Packet* pk = new Packet(_buff, ret);
 	us16 sid = pk->get_sid();
 
-	printf("[Debug]: <-- Server %d [%d]\n", ret, sid);
+	// printf("[Debug]: <-- Server %d [%d]\n", ret, sid);
 	assert(sid <= MAX_SID && sid >= 0);
 
 	if (sid <= MAX_SID && sid >= 0) {	// sid不合理的话，放弃这个数据包
@@ -79,7 +79,11 @@ void ServerConn::remove_hp(int sid) {
 	map<int, HttpProxy*>::iterator iter = _hps.find(sid);
 	if (iter != _hps.end()) {
 		send_cmd(CMD::MAKE_cmd_dis_connect(sid), sizeof(CMD::cmd_dis_connect));	// 通知服务端这个会话已经结束了
+		delete iter->second;
 		_hps.erase(iter);
+	}
+	else {
+		// printf("[Debug]: remove_hp找不到sid: %d\n", sid);
 	}
 }
 

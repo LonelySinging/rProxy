@@ -282,7 +282,7 @@ namespace GNET {
                 SetError();
                 return;
             }
-            printf("[Info]: 连接成功: %s:%d\n", _host.c_str(), _port);
+            // printf("[Info]: 连接成功: %s:%d\n", _host.c_str(), _port);
         }
     };
 
@@ -319,9 +319,9 @@ namespace GNET {
         }
 #endif
 
-        static void register_poll(BaseNet* bn) {
+        static void register_poll(BaseNet* bn, int sid = 0) {
             std::lock_guard<std::mutex> l(_poll_mtx);
-            printf("[Debug]: 开始注册poll _sock_fd: %d, bn: %p\n", bn->get_sock(), bn);
+            printf("[Debug]: 开始注册poll _sock_fd: %d, sid: %d\n", bn->get_sock(), sid);
 
 #ifdef __linux
             // _ev.events = EPOLLIN | EPOLLET;
@@ -332,9 +332,9 @@ namespace GNET {
             _read_fds_map[bn->get_sock()] = bn; // 虽然注册进去了 但是可能并没有生效 这个需要select的超时
 #endif
         }
-        static void deregister_poll(BaseNet* bn) {
+        static void deregister_poll(BaseNet* bn, int sid = 0) {
             std::lock_guard<std::mutex> l(_poll_mtx);
-            printf("[Debug]: 取消注册poll: %d\n", bn->get_sock());
+            // printf("[Debug]: 取消注册poll: %d sid: %d\n", bn->get_sock(), sid);
 #ifdef __linux
             epoll_ctl(_eph, EPOLL_CTL_DEL, bn->get_sock(), NULL);
 #else
@@ -343,7 +343,6 @@ namespace GNET {
             if (iter != _read_fds_map.end()) {
                 _read_fds_map.erase(iter);
             }
-
 #endif
         }
 

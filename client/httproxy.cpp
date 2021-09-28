@@ -38,7 +38,7 @@ public:
 					if (_http_proxy->_http_handler->SendN((char*)new_hh.c_str(), new_hh.length()) <= 0) {
 						printf("[Error]: 发送到http失败 sid=[%d]\n", _sid);
 					}else {
-						GNET::Poll::register_poll(_http_proxy->_http_handler);
+						GNET::Poll::register_poll(_http_proxy->_http_handler, _sid);
 						return;
 					}
 				}else {
@@ -59,11 +59,11 @@ public:
 				if (!_http_proxy->_http_handler->IsError()) {
 					Packet pk(_sid, strlen("HTTP/1.1 200 Connection established\r\n\r\n"), "HTTP/1.1 200 Connection established\r\n\r\n");
 					int ret = _server_conn->SendPacket(pk.get_p(), pk.get_packet_len(), true);
-					printf("[Debug]: 发送认证 %d [%d]\n", ret, _sid);
+					// printf("[Debug]: 发送认证 %d [%d]\n", ret, _sid);
 					if (ret <= 0) {
 						printf("[Error]: 发送到Server失败 sid=[%d]\n", _sid);
 					}else {
-						GNET::Poll::register_poll(_http_proxy->_http_handler);
+						GNET::Poll::register_poll(_http_proxy->_http_handler, _sid);
 						return;
 					}
 				}else {
@@ -80,21 +80,22 @@ public:
 };
 
 void HandleHttp::OnRecv() {
-	char* buff = (char*)malloc(Packet::DATA_SIZE);	// 可以作为一个常备缓冲区 <<3>>
-	int ret = Recv(buff, Packet::DATA_SIZE);
+	if (!_buff) {
+		_buff = (char*)malloc(Packet::DATA_SIZE);
+	}
+	int ret = Recv(_buff, Packet::DATA_SIZE);
 	if (ret <= 0) {
 		printf("[Debug]: 接收结束 ret=%d sid=[%d]\n", ret, _sid);
 		_server_conn->remove_hp(_sid);	// 结束 handle
 	}else {
-		printf("[Debug]: <-- Http %d [%d]\n", ret, _sid);
-		Packet pk(_sid, ret, buff);
+		// printf("[Debug]: <-- Http %d [%d]\n", ret, _sid);
+		Packet pk(_sid, ret, _buff);
 		assert(ret == pk.get_data_len());
 		assert(_sid == pk.get_sid());
 		ret = _server_conn->SendPacket(pk.get_p(), pk.get_packet_len(), true);
-		printf("[Debug]: --> Server %d [%d] plen %d\n", ret, pk.get_sid(), (int)pk.get_packet_len());
+		// printf("[Debug]: --> Server %d [%d] plen %d\n", ret, pk.get_sid(), (int)pk.get_packet_len());
 		assert(pk.get_packet_len() <= Packet::PACKET_SIZE);
 	}
-	free(buff);
 }
 
 // 参数是不带sid头的数据
@@ -109,13 +110,13 @@ void HttpProxy::OnRecv(char* data, int len) {
 		THREAD::ThreadHelper::start_thread_task(hc);	// 直接交给一个独立线程去完成
 	}else {
 		if (!_http_handler) {
-			printf("[Error]: 收到了错误的请求\n");
+			printf("[Error]: 收到了错误的请求 %d\n", _sid);
 			dump(http_str);
 			_server_conn->remove_hp(_sid);
 		}
 		else {
 			len = _http_handler->SendN(data, len);
-			printf("[Debug]: --> Http %d [%d]\n", len, _sid);
+			// printf("[Debug]: --> Http %d [%d]\n", len, _sid);
 		}
 	}
 }
