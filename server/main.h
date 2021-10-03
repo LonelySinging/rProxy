@@ -240,6 +240,8 @@ private:
 };
 
 
+// 这里不记录对应key的原因是因为多个key可能对应同一个Action 例如做错误处理的时候 
+// 很多key都能触发同一个错误处理
 class DumpRunStatusAction : public ActionTask{
 public:
     virtual void OnRquest(HttpParam & pp, char* & data, int & data_len){
@@ -260,8 +262,8 @@ private:
     int _port;
 public:
     enum{
-        // CLIENT_COUNT = 10,     // 客户端数量数量
-        MAX_TRY_NUM = 10        // 最大尝试绑定端口数
+        // CLIENT_COUNT = 10,       // 客户端数量数量
+        MAX_TRY_NUM = 10            // 最大尝试绑定端口数
     };
     ServerListener(string host, int port, int max_client=10):Passive(host, port), _port(port){
         if(IsError()){  // 连接出错就直接退出
@@ -272,10 +274,13 @@ public:
         _client_count = 0;
         GNET::Poll::register_poll(this);
         _drsa = new DumpRunStatusAction();
-        HttpRequestHandle::register_action("/dumpState", _drsa);
+        if(!HttpRequestHandle::register_action("/dumpState", _drsa)){
+            printf("[Warning] 注册动作失败 %s\n", "/dumpState");
+        }
     };
 
     ~ServerListener(){
+        HttpRequestHandle::deregister_action("/dumpState");
         delete _drsa;
     }
 
