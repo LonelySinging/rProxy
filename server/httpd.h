@@ -117,20 +117,23 @@ public:
         return false;
     }
 
-    void register_action(string key, ActionTask* at){
+    bool register_action(string key, ActionTask* at){
         map<string, ActionTask*>::iterator it = _kv.find(key);
         if (it != _kv.end()){
-            delete it->second;  // 如果已经注册过了，则会删除旧任务
+            return false;       // 如果注册过了，那么返回错误 否则应不应该覆盖呢？
         }
         _kv[key] = at;
+        return true;
     }
 
-    void cancel_action(string key){
+    // 不负责结束Action的生命周期！
+    bool deregister_action(string key){
         map<string, ActionTask*>::iterator it = _kv.find(key);
         if (it != _kv.end()){
-            delete it->second;  // 如果已经注册过了，则会删除旧任务
             _kv.erase(key);
+            return true;
         }
+        return false;
     }
 };
 
@@ -155,9 +158,14 @@ public:
     }
 
     // 因为需要把数据把main.cpp那边传递过来，又不想两个模块之间有太多的耦合所以还是使用老办法
-    static void register_action(string key, ActionTask* at){
-        cout << "[Info]: 注册" << key << endl;
-        _am.register_action(key, at);
+    static bool register_action(string key, ActionTask* at){
+        cout << "[Info]: 注册动作 " << key << endl;
+        return _am.register_action(key, at);
+    }
+
+    static bool deregister_action(string key){
+        cout << "[Info]: 取消注册动作 " << key <<endl;
+        return _am.deregister_action(key);
     }
 
     string make_html(string body){
@@ -226,10 +234,6 @@ public:
         HttpRequestHandle *rh = new HttpRequestHandle(*bn);
         delete bn;
         _request_count ++;
-    }
-
-    void OnClose(){
-        GNET::BaseNet::OnClose();
     }
 }; 
 #endif
