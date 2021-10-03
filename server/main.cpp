@@ -182,7 +182,6 @@ void ClientHandle::del_session(int sid){
     }
 }
 
-
 void ServerListener::OnRecv(){
 	printf("[Info]: 有客户端连接到达\n");
     GNET::BaseNet* bn = Accept();
@@ -282,6 +281,11 @@ int main(int argv, char* args[]){
 
     // assert(false);
     GNET::Poll::loop_poll();    // 需要删除所有在poll池中的对象 需要依靠poll自己完成
+    hd->OnClose();
+    delete hd;
+
+    sl->OnClose();
+    delete sl;
 	getchar();
 }
 
