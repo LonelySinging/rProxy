@@ -64,7 +64,7 @@ void ClientListener::OnRecv(){
 void ClientHandle::OnRecv(){
     int len = RecvPacket(_buff, Packet::PACKET_SIZE);
     if (len == 0){
-        OnClose();
+        _sl->del_ch(_cl->get_port());   // 让SerevrListener关闭
         return ;
     }
     if (len == -1){ // 不是个完整的数据包 只是接收到了包长信息
@@ -129,7 +129,6 @@ void ClientHandle::OnClose(){
     _cl->OnClose();             // 关闭端口监听
     del_session(-1);            // 断开所有的请求端
     if(_cl){_cl->SetDelete();}        // 释放监听对象
-    this->SetDelete();                // 删除自己 目前没有记录ServerListen，否则应该交给SL去做
     ServerListener::inc_client_count(); 
     // 减少客户端计数 不放在析构函数是因为需要把用到了ServerListener的实现，
     // 就需要把析构函数放在cpp中实现(预定义不行)，emmmm 觉得太麻烦了
@@ -149,7 +148,7 @@ void ClientHandle::add_session(int sid, GNET::BaseNet* bn){
     std::map<int, GNET::BaseNet*>::iterator iter = _sessions.find(sid);
     if (iter != _sessions.end()){
         assert(false && "sid重复");
-        iter->second->OnClose();    // 有6000个sid可以用，但是依旧重复了，，不应该的
+        iter->second->OnClose();    // 不应该重复，因为生成sid的时候已经判断重复了
         delete iter->second;
     }
     _sessions[sid] = bn;    // 重复也覆盖
@@ -224,6 +223,8 @@ void ServerListener::OnRecv(){
             GNET::Poll::register_poll(ch);  // 此时才会处理客户端
             GNET::Poll::register_poll(cl);  // 注册请求监听
             ch->set_client_listener(cl);    // 因为需要在与客户端断开的时候关闭监听 所以需要记录
+            ch->set_server_listener(this);  // ClientHandle的生命周期由sl结束
+            add_ch(_client_port, ch);       // 控制权移交
             RunStatus::ClientInfo* ci = new RunStatus::ClientInfo;
             if (ci){
                 ci->_active = false;
@@ -288,6 +289,3 @@ int main(int argv, char* args[]){
     delete sl;
 	getchar();
 }
-
-// 修改默认端口号为7201开始
-// ci申请失败之后继续逻辑

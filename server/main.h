@@ -66,6 +66,7 @@ public:
 };
 
 // 客户端 Handle
+class ServerListener;
 class ClientHandle : public GNET::BaseNet{
 private:
     friend RequestHandle;
@@ -73,6 +74,7 @@ private:
     // 记录所有与之相关的请求端
     std::map<int, GNET::BaseNet*> _sessions;    // sid, client_bn
     ClientListener* _cl;        // 监听端口套接字，用于与客户端断开时关闭端口
+    ServerListener* _sl;        // 监听客户端的套接字，用于移除自己
     char* _buff;                // 接收缓存
     bool _active = false;       // 是否登录 比RunStatus里面的接口判断要快
 
@@ -92,6 +94,7 @@ public:
     void OnRecv();  // 来自客户端的数据
 
     void set_client_listener(ClientListener *cl){_cl = cl;}
+    void set_server_listener(ServerListener* sl){_sl = sl;}
     GNET::BaseNet* fetch_bn(int sid = -1){
         if (sid == -1){ // 取到第一个请求端，调试用
             if (_sessions.begin() != _sessions.end()){
@@ -255,6 +258,7 @@ public:
 // 负责接收来自客户端的连接
 class ServerListener : public GNET::Passive{
 private:
+    map<int, ClientHandle*> _chs;   // 记录所有客户端对象 <port, ClientHanle*>
     DumpRunStatusAction* _drsa;
     int _client_port;              // 记录下一个端口号
     static int _client_count;      // 活跃的客户端数
@@ -282,6 +286,12 @@ public:
     ~ServerListener(){
         HttpRequestHandle::deregister_action("/dumpState");
         delete _drsa;
+        
+        map<int, ClientHandle*>::iterator iter = _chs.begin();
+        for (;iter != _chs.end(); iter++){
+            iter->second->SetDelete();  // 设置删除
+        }
+        _chs.clear();
     }
 
     void OnRecv();
@@ -300,7 +310,24 @@ public:
             printf("[Warning]: 超出客户端上限 Real/Max: %d/%d\n", _client_count, CLIENT_COUNT);
         }
     }
+
+    bool add_ch(int port, ClientHandle* ch){
+        map<int, ClientHandle*>::iterator iter = _chs.find(port);
+        if (iter != _chs.end()){
+            return false;
+        }
+        _chs[port] = ch;
+        return true;
+    }
+
+    // 并不能真的delete了，因为这个对象可能出现在即将触发的poll池中
+    bool del_ch(int port){
+        map<int, ClientHandle*>::iterator iter = _chs.find(port);
+        if(iter != _chs.end()){
+            _chs[port]->OnClose();
+            _chs[port]->SetDelete();
+            return true;
+        }
+        return false;
+    }
 };
-
-
-
