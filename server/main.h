@@ -72,7 +72,7 @@ private:
     friend RequestHandle;
 
     // 记录所有与之相关的请求端
-    std::map<int, GNET::BaseNet*> _sessions;    // sid, client_bn
+    std::map<int, RequestHandle*> _sessions;    // sid, client_bn
     ClientListener* _cl;        // 监听端口套接字，用于与客户端断开时关闭端口
     ServerListener* _sl;        // 监听客户端的套接字，用于移除自己
     char* _buff;                // 接收缓存
@@ -101,7 +101,7 @@ public:
                 return _sessions.begin()->second;
             }
         }else{
-            std::map<int, GNET::BaseNet*>::iterator iter = _sessions.find(sid);
+            std::map<int, RequestHandle*>::iterator iter = _sessions.find(sid);
             if(_sessions.end() != iter){
                 return iter->second;
             }
@@ -109,7 +109,7 @@ public:
         return NULL;
     }
 
-    void add_session(int sid, GNET::BaseNet* bn);
+    void add_session(int sid, RequestHandle* bn);
 
     void del_session(int sid);
 
@@ -269,7 +269,7 @@ public:
         // CLIENT_COUNT = 10,       // 客户端数量数量
         MAX_TRY_NUM = 10            // 最大尝试绑定端口数
     };
-    ServerListener(string host, int port, int max_client=10):Passive(host, port), _port(port){
+    ServerListener(string host, int port, int max_client=10):Passive(host, port), _port(port), _drsa(NULL){
         if(IsError()){  // 连接出错就直接退出
             return ;
         }
@@ -284,11 +284,14 @@ public:
     };
 
     ~ServerListener(){
+        SetDelete();
+        
         HttpRequestHandle::deregister_action("/dumpState");
-        delete _drsa;
+        if (_drsa) {delete _drsa;}
         
         map<int, ClientHandle*>::iterator iter = _chs.begin();
         for (;iter != _chs.end(); iter++){
+            iter->second->OnClose();
             iter->second->SetDelete();  // 设置删除
         }
         _chs.clear();

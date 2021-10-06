@@ -144,8 +144,8 @@ void ClientHandle::send_cmd(char* data, int len){
     }
 }
 
-void ClientHandle::add_session(int sid, GNET::BaseNet* bn){
-    std::map<int, GNET::BaseNet*>::iterator iter = _sessions.find(sid);
+void ClientHandle::add_session(int sid, RequestHandle* bn){
+    std::map<int, RequestHandle*>::iterator iter = _sessions.find(sid);
     if (iter != _sessions.end()){
         assert(false && "sid重复");
         iter->second->OnClose();    // 不应该重复，因为生成sid的时候已经判断重复了
@@ -158,10 +158,10 @@ void ClientHandle::add_session(int sid, GNET::BaseNet* bn){
 
 void ClientHandle::del_session(int sid){
     if(sid == -1){
-        std::map<int, GNET::BaseNet*>::iterator iter = _sessions.begin();
+        std::map<int, RequestHandle*>::iterator iter = _sessions.begin();
         for (;iter != _sessions.end();iter++){
             iter->second->OnClose();
-            iter->second->SetDelete();  // 设置删除 会在poll循环中删除
+            iter->second->SetDelete();  // 设置删除 会在poll循环中删除  
             // delete iter->second;
             printf("[Info]: 结束会话 sid: %d\n", iter->first);
             RunStatus::get_client_info(_cl->get_port())->_cur_sessions = 0;
@@ -169,7 +169,7 @@ void ClientHandle::del_session(int sid){
         _sessions.clear();
         
     }else{
-        std::map<int, GNET::BaseNet*>::iterator iter = _sessions.find(sid);
+        std::map<int, RequestHandle*>::iterator iter = _sessions.find(sid);
         if (iter != _sessions.end()){
             iter->second->OnClose();
             iter->second->SetDelete();  // 设置删除 会在poll循环中删除
