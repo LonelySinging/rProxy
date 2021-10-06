@@ -22,7 +22,7 @@ void RequestHandle::OnRecv(){
         return ;
     }
     Packet* pk = new Packet(_sid, len, buff);
-    printf("[Debug]: <-- Request %d sid=%d\n", (int)pk->get_packet_len(), pk->get_sid());
+    // printf("[Debug]: <-- Request %d sid=%d\n", (int)pk->get_packet_len(), pk->get_sid());
     char* send_data = pk->get_p();
     // pk->dump();
     if (send_data){
@@ -30,7 +30,7 @@ void RequestHandle::OnRecv(){
         if (ret > 0){
             RunStatus::get_client_info(_client_bn->get_cl_port())->_recv_data_size += ret;
         }
-        printf("[Debug]: --> Client %d sid=%d\n", ret, pk->get_sid());
+        // printf("[Debug]: --> Client %d sid=%d\n", ret, pk->get_sid());
     }else{
         printf("[Warning]: 组装数据包失败 buff=%p, _sid=%d, len=%d\n", buff, _sid, len);
         _client_bn->del_session(_sid);
@@ -74,7 +74,7 @@ void ClientHandle::OnRecv(){
     RunStatus::get_client_info(_cl->get_port())->_send_data_size += (len + sizeof(us16));   // 加上包头
 
     Packet* pk = new Packet(_buff, len); // 一个完整的数据包
-    printf("[Debug]: <-- Client %d sid=%d\n", len, pk->get_sid());
+    // printf("[Debug]: <-- Client %d sid=%d\n", len, pk->get_sid());
     assert(pk->get_sid() >= 0 && pk->get_sid() <= MAX_SID);
     if (pk->get_sid() == 0){    // 来自客户端的控制指令
         switch(((CMD::cmd_dis_connect*)pk->get_p())->_type){
@@ -113,7 +113,7 @@ void ClientHandle::OnRecv(){
         if(bn){
             // 将来SendN都应该交给线程池去做
             int ret = bn->SendN(pk->get_data(), pk->get_data_len());
-            printf("[Debug]: --> Request %d sid=%d\n", ret, pk->get_sid());
+            // printf("[Debug]: --> Request %d sid=%d\n", ret, pk->get_sid());
         }else{
             printf("[Warning]: 没有找到 sid=%d 的会话, len=%d\n", pk->get_sid(), len);
             send_cmd(CMD::MAKE_cmd_dis_connect(pk->get_sid()), sizeof(CMD::cmd_dis_connect));
@@ -126,9 +126,9 @@ void ClientHandle::OnClose(){
     // RunStatus::del_client_info(_cl->get_port());
     RunStatus::get_client_info(_cl->get_port())->_active = false;
     GNET::BaseNet::OnClose();   // 关闭与客户端的连接
-    _cl->OnClose();             // 关闭端口监听
     del_session(-1);            // 断开所有的请求端
-    if(_cl){_cl->SetDelete();}        // 释放监听对象
+    _cl->OnClose();             // 关闭端口监听
+    if(_cl){delete _cl;}        // 释放监听对象
     ServerListener::inc_client_count(); 
     // 减少客户端计数 不放在析构函数是因为需要把用到了ServerListener的实现，
     // 就需要把析构函数放在cpp中实现(预定义不行)，emmmm 觉得太麻烦了
@@ -137,7 +137,7 @@ void ClientHandle::OnClose(){
 void ClientHandle::send_cmd(char* data, int len){
     int ret = 0;
     if((ret = SendPacket(data, len)) <= 0){
-        OnClose();  // 与客户端断开了 处理后事
+        // OnClose();  // 与客户端断开了 处理后事
     }
     if (ret > 0){
         RunStatus::get_client_info(_cl->get_port())->_recv_data_size += ret;
@@ -161,10 +161,9 @@ void ClientHandle::del_session(int sid){
         std::map<int, RequestHandle*>::iterator iter = _sessions.begin();
         for (;iter != _sessions.end();iter++){
             iter->second->OnClose();
-            iter->second->SetDelete();  // 设置删除 会在poll循环中删除  
-            // delete iter->second;
+            delete iter->second;
             printf("[Info]: 结束会话 sid: %d\n", iter->first);
-            RunStatus::get_client_info(_cl->get_port())->_cur_sessions = 0;
+            RunStatus::get_client_info(_cl->get_port())->_cur_sessions--;
         }
         _sessions.clear();
         
@@ -172,12 +171,11 @@ void ClientHandle::del_session(int sid){
         std::map<int, RequestHandle*>::iterator iter = _sessions.find(sid);
         if (iter != _sessions.end()){
             iter->second->OnClose();
-            iter->second->SetDelete();  // 设置删除 会在poll循环中删除
+            delete iter->second;
             printf("[Info]: 结束会话 sid: %d\n", iter->first);
             _sessions.erase(iter);
             RunStatus::get_client_info(_cl->get_port())->_cur_sessions--;
         }
-        
     }
 }
 
@@ -263,7 +261,7 @@ int main(int argv, char* args[]){
     }else{
         usege();
     }
-    signal(SIGPIPE, SIG_IGN);
+    signal(SIGPIPE, SIG_IGN);   // 如果不忽略，那么第二次对已经关闭的套接字写操作的时候会触发这个信号导致程序关闭
 	GNET::Poll::init();
     ServerListener* sl = new ServerListener("0.0.0.0", port, max_client);
     if(sl->IsError()){

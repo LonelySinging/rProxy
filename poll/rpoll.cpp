@@ -8,6 +8,7 @@ namespace GNET{
     Poll poll;
     struct epoll_event Poll::_ev;
     struct epoll_event Poll::_events[MAX_CONNECT];
+    std::vector<BaseNet*> Poll::_deleted_vector;
 
     int Poll::_eph = 0;
 #else

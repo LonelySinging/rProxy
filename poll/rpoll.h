@@ -20,7 +20,9 @@
 
 #include <iostream>
 #include <map>
+#include <vector>
 #include <mutex>
+#include <algorithm>
 
 namespace GNET {
     using std::string;
@@ -151,7 +153,7 @@ namespace GNET {
         int Send(const char* data, size_t len){
             int ret = 0;
             ret = send(_sock_fd, data, len, 0);
-            if (ret != len){
+            if (ret != len && ret > 0){
                 printf("[!!!!!!!!] Send:  ret/len: %d/%d\n",ret, (int)len);
             }
             return ret;
@@ -295,6 +297,7 @@ namespace GNET {
 #ifdef __linux
         static struct epoll_event _ev, _events[MAX_CONNECT];
         static int _eph;
+        static std::vector<BaseNet*> _deleted_vector;     // 保存某次poll循环被删除的对象
 #else
         static timeval _select_timeout;
         static fd_set _read_fds;
@@ -321,7 +324,7 @@ namespace GNET {
 
         static void register_poll(BaseNet* bn, int sid = 0) {
             std::lock_guard<std::mutex> l(_poll_mtx);
-            printf("[Debug]: 开始注册poll _sock_fd: %d, sid: %d\n", bn->get_sock(), sid);
+            // printf("[Debug]: 开始注册poll _sock_fd: %d, sid: %d\n", bn->get_sock(), sid);
 
 #ifdef __linux
             // _ev.events = EPOLLIN | EPOLLET;
@@ -334,8 +337,12 @@ namespace GNET {
         }
         static void deregister_poll(BaseNet* bn, int sid = 0) {
             std::lock_guard<std::mutex> l(_poll_mtx);
+            if (sid == -233){
+                printf("[Debug]: 取消注册poll: %d sid: %d\n", bn->get_sock(), sid);
+            }
             // printf("[Debug]: 取消注册poll: %d sid: %d\n", bn->get_sock(), sid);
 #ifdef __linux
+            _deleted_vector.push_back(bn);
             epoll_ctl(_eph, EPOLL_CTL_DEL, bn->get_sock(), NULL);
 #else
             // FD_CLR(bn->get_sock(), &_read_fds);     // 忘记取消注册的话，会导致select检查已经被关闭的套接字 导致出现 10038 错误
@@ -366,15 +373,15 @@ namespace GNET {
                 BaseNet* bn;
                 for (int i = 0; i < n; i++) {
                     bn = (BaseNet*)_events[i].data.ptr;  // 由多态选择具体的操作逻辑
-                    if (bn->IsDelete()){
-                        delete bn;      // 只有注册到poll列表里面的对象才会需要这里删除
-                    }else{
+
+                    std::vector<BaseNet*>::iterator it = find(_deleted_vector.begin(), _deleted_vector.end(), bn);  // 看看是不是在本次epoll_wait已经被删除了
+                    if (it == _deleted_vector.end()){
                         bn->OnRecv();
-                        if (bn->IsDelete()){
-                            delete bn;
-                        }
+                    }else{
+                        printf("[Debug]: 发现已删除对象\n");
                     }
                 }
+                _deleted_vector.clear();   // 仅保存一个epoll_wait的删除对象
 #else
                 // printf("[Debug]: t1=%d, t2=%d\n", _select_timeout.tv_sec, _select_timeout.tv_usec);
                 // 更新所有套接字进去

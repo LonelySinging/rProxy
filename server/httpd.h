@@ -152,6 +152,7 @@ public:
             html_header = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
         }
     ~HttpRequestHandle(){
+        GNET::Poll::deregister_poll(this);
         if (_buffer){
             free(_buffer);
         }
@@ -234,6 +235,10 @@ public:
         HttpRequestHandle *rh = new HttpRequestHandle(*bn);
         delete bn;
         _request_count ++;
+    }
+
+    ~Httpd(){
+        GNET::Poll::deregister_poll(this);
     }
 }; 
 #endif

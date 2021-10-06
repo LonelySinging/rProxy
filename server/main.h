@@ -29,11 +29,14 @@ private:
 public:
     RequestHandle(GNET::BaseNet& bn, ClientHandle* client_bn, int sid) 
     : GNET::BaseNet(bn), _client_bn(client_bn), _sid(sid){
-        printf("[Info]: 接收到了 %s:%d [%d] 的连接\n", _host.c_str(), _port, _sid);
+        // printf("[Info]: 接收到了 %s:%d [%d] 的连接\n", _host.c_str(), _port, _sid);
     };    // 这里应该会触发 BaseNet 的拷贝构造
 
     void OnRecv();  // 来自请求端的数据
     void OnClose();
+    ~RequestHandle(){
+        GNET::Poll::deregister_poll(this);
+    }
 };
 
 
@@ -63,6 +66,10 @@ public:
         _client_fd = 0;
     }
     void OnRecv();
+
+    ~ClientListener(){
+        GNET::Poll::deregister_poll(this);
+    }
 };
 
 // 客户端 Handle
@@ -85,6 +92,8 @@ public:
         _buff = (char*)malloc(Packet::PACKET_SIZE + 2);
     };
     ~ClientHandle(){
+        printf("[Debug]: 取消注册ch\n");
+        GNET::Poll::deregister_poll(this, -233);
         if (_buff){
             free(_buff);
             _buff = NULL;
@@ -284,15 +293,14 @@ public:
     };
 
     ~ServerListener(){
-        SetDelete();
+        GNET::Poll::deregister_poll(this);
         
         HttpRequestHandle::deregister_action("/dumpState");
         if (_drsa) {delete _drsa;}
         
         map<int, ClientHandle*>::iterator iter = _chs.begin();
         for (;iter != _chs.end(); iter++){
-            iter->second->OnClose();
-            iter->second->SetDelete();  // 设置删除
+            del_ch(iter->first);
         }
         _chs.clear();
     }
@@ -323,12 +331,11 @@ public:
         return true;
     }
 
-    // 并不能真的delete了，因为这个对象可能出现在即将触发的poll池中
     bool del_ch(int port){
         map<int, ClientHandle*>::iterator iter = _chs.find(port);
         if(iter != _chs.end()){
             _chs[port]->OnClose();
-            _chs[port]->SetDelete();
+            delete _chs[port];
             return true;
         }
         return false;

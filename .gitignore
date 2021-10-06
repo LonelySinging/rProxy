@@ -9,3 +9,4 @@ core
 *.swp
 main
 tags
+.vscode/
