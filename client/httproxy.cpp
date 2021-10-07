@@ -27,6 +27,10 @@ public:
 
 	void run() {
 		set_delete();	// 因为是通过标志位由ThreadHelper代劳删除,所以一开始就设置标志位是没有问题的
+		if (_http_proxy->_http_handler) {
+			printf("[Debug]: 已经建立链接的http又一次建立链接 sid: %d\n", _sid);	// 愚蠢的浏览器可能会发送两次请求，但愿这么处理不会让它发疯
+			return;
+		}
 		if (_http_str.find("GET") == 0 || _http_str.find("POST") == 0 || _http_str.find("HEAD") == 0) {
 			HttpHeader hh(_http_str);
 			char ip[128] = { 0 };

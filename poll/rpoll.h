@@ -196,6 +196,7 @@ namespace GNET {
             if (_packet_size == 0){ // 需要接收头部 不用RecvN 需要标记头部是否接收完了 <<2>>
                 us16 l = 0;
                 _packet_pos = 0;
+                memset(data, 0, expected_len);
                 int ret = RecvN((char*)&l, sizeof(us16));    // 先获取包的长度 recv返回值是1的情况确实发生了你敢信
                 if (ret <= 0){return 0;}
                 // assert(ret == sizeof(us16));
@@ -206,6 +207,7 @@ namespace GNET {
                     _packet_size = 0;
                     return 0;   // 包头异常表示这个连接已经没有维护的必要了 应该结束
                 }
+                assert(_packet_size != 0);
                 // printf("[Debug]: 接收到的头 %d\n", l);
                 return -1;
             }else{
@@ -324,7 +326,7 @@ namespace GNET {
 
         static void register_poll(BaseNet* bn, int sid = 0) {
             std::lock_guard<std::mutex> l(_poll_mtx);
-            // printf("[Debug]: 开始注册poll _sock_fd: %d, sid: %d\n", bn->get_sock(), sid);
+            printf("[Debug]: 开始注册poll _sock_fd: %d, sid: %d\n", bn->get_sock(), sid);
 
 #ifdef __linux
             // _ev.events = EPOLLIN | EPOLLET;
@@ -337,10 +339,7 @@ namespace GNET {
         }
         static void deregister_poll(BaseNet* bn, int sid = 0) {
             std::lock_guard<std::mutex> l(_poll_mtx);
-            if (sid == -233){
-                printf("[Debug]: 取消注册poll: %d sid: %d\n", bn->get_sock(), sid);
-            }
-            // printf("[Debug]: 取消注册poll: %d sid: %d\n", bn->get_sock(), sid);
+            printf("[Debug]: 取消注册poll: %d sid: %d\n", bn->get_sock(), sid);
 #ifdef __linux
             _deleted_vector.push_back(bn);
             epoll_ctl(_eph, EPOLL_CTL_DEL, bn->get_sock(), NULL);

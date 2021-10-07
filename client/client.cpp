@@ -19,19 +19,18 @@ void ServerConn::OnRecv() {
 	if (ret == -1) {	// 不完整的数据包
 		return;
 	}
-	Packet* pk = new Packet(_buff, ret);
-	us16 sid = pk->get_sid();
+	Packet pk(_buff, ret);
+	us16 sid = pk.get_sid();
 
 	// printf("[Debug]: <-- Server %d [%d]\n", ret, sid);
 	assert(sid <= MAX_SID && sid >= 0);
 
 	if (sid <= MAX_SID && sid >= 0) {	// sid不合理的话，放弃这个数据包
 		if (sid == 0) {		// 这是个控制指令
-			switch (((CMD::cmd_dis_connect*)pk->get_p())->_type) {
+			switch (((CMD::cmd_dis_connect*)pk.get_p())->_type) {
 			case CMD::CMD_END_SESSION:
 			{
-				int s = ((CMD::cmd_dis_connect*)pk->get_p())->_sid;
-				remove_hp(s);
+				remove_hp(((CMD::cmd_dis_connect*)pk.get_p())->_sid);
 				break;
 			}
 			default:
@@ -40,19 +39,20 @@ void ServerConn::OnRecv() {
 		}
 		else {
 			if (has_hp(sid)) {
-				fetch_hp(sid)->OnRecv(pk->get_data(), pk->get_data_len());
+				// printf("[Debug]: 处理: sid: %d, len: %d\n", sid, (int)pk.get_data_len());
+				fetch_hp(sid)->OnRecv(pk.get_data(), pk.get_data_len());
 			}
 			else {
 				// 当客户端一个会话结束之后，服务端又发来一个sid，依旧被添加进来了。
 				// 这个问题不用担心，会因为_http_handler==NULL而在OnRecv()中被移除，但确实多此一举了。
 				// 考虑把remove_hp()操作放在一个地方完成。比如只会在接收到服务端结束session命令的时候才删除。	<<1>>
 				// 如果是直接与服务端断开的话，当然还是要remove_hp(-1);以免内存泄漏
+				// printf("[Debug]: 添加: sid: %d, len: %d\n", sid, (int)pk.get_data_len());
 				add_hp(sid, new HttpProxy(sid, this));
-				fetch_hp(sid)->OnRecv(pk->get_data(), pk->get_data_len());
+				fetch_hp(sid)->OnRecv(pk.get_data(), pk.get_data_len());
 			}
 		}
 	}
-	delete pk;
 }
 
 void ServerConn::send_cmd(char* data, int len) {
