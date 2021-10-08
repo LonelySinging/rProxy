@@ -38,6 +38,7 @@ class ServerConn;
 class HttpProxy {
 private:
 	bool _is_https;
+	bool _forbid_delete;
 	static mutex _mtx;
 	HandleHttp* _http_handler;
 	us16 _sid;
@@ -48,7 +49,8 @@ public:
 		_is_https(false),
 		_sid(sid),
 		_http_handler(NULL),
-		_server_conn(server_conn) {}
+		_server_conn(server_conn),
+		_forbid_delete(false) {}
 
 	~HttpProxy() {	// 当 HttpProxy被删除的时候_http_handler也就失去意义了 所以可以在析构函数这里删除
 		if (_http_handler) {
@@ -83,6 +85,9 @@ public:
 		sprintf_s(ip, 18, "%s", inet_ntoa(*(struct in_addr*)host->h_addr_list[0]));
 		return true;
 	}
+
+	bool is_forbid_delete() { return _forbid_delete; };
+	void set_forbid_delete(bool b = true) { _forbid_delete = b; };
 
 };
 

@@ -78,6 +78,7 @@ void ServerConn::remove_hp(int sid) {
 	}
 	map<int, HttpProxy*>::iterator iter = _hps.find(sid);
 	if (iter != _hps.end()) {
+		if (iter->second->is_forbid_delete()) { return; }
 		send_cmd(CMD::MAKE_cmd_dis_connect(sid), sizeof(CMD::cmd_dis_connect));	// 通知服务端这个会话已经结束了
 		delete iter->second;
 		_hps.erase(iter);

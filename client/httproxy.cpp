@@ -43,6 +43,7 @@ public:
 						printf("[Error]: 发送到http失败 sid=[%d]\n", _sid);
 					}else {
 						GNET::Poll::register_poll(_http_proxy->_http_handler, _sid);
+						_http_proxy->set_forbid_delete(false);
 						return;
 					}
 				}else {
@@ -52,7 +53,6 @@ public:
 				printf("[Error]: 域名解析失败 %s:%d [%d]\n", hh.get_host().c_str(), hh.get_port(), _sid);
 			}
 			printf("[Info]: 结束会话 [%d]\n", _sid);
-			_server_conn->remove_hp(_sid);
 		}
 		else if (_http_str.find("CONNECT") == 0) {	// https 请求
 			HttpHeader hh(_http_str);
@@ -68,6 +68,7 @@ public:
 						printf("[Error]: 发送到Server失败 sid=[%d]\n", _sid);
 					}else {
 						GNET::Poll::register_poll(_http_proxy->_http_handler, _sid);
+						_http_proxy->set_forbid_delete(false);
 						return;
 					}
 				}else {
@@ -77,9 +78,10 @@ public:
 				printf("[Error]: 域名解析失败 %s:%d [%d]\n", hh.get_host().c_str(), hh.get_port(), _sid);
 			}
 			printf("[Info]: 结束会话 %d\n", _sid);
-			_server_conn->remove_hp(_sid);
 		}
 		else { assert(false && "怎么想都执行不到这里吧？？？"); }
+		_http_proxy->set_forbid_delete(false);
+		_server_conn->remove_hp(_sid);
 	}
 };
 
@@ -110,6 +112,7 @@ void HttpProxy::OnRecv(char* data, int len) {
 		// 因为建立连接之前，不管是客户端还是服务端都不会再发送数据过来，所以不会出现线程还没建立连接就来了新数据而_http_handler==NULL
 		// 导致关闭会话的问题。但是如果首次接收的消息不完整，那确实有可能出错 如果出现一个请求被分包成了两个 若是包含了足够的建立连接的信息
 		// 会导致后半个包被发送给http服务器导致http断开连接
+		set_forbid_delete();	// 防止在链接期间这个对象被删除
 		HttpConnecter* hc = new HttpConnecter(http_str, this, _sid, _server_conn);	// run 完毕之后删除自己
 		THREAD::ThreadHelper::start_thread_task(hc);	// 直接交给一个独立线程去完成
 	}else {
