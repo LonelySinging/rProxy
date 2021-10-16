@@ -9,3 +9,6 @@ core
 *.swp
 main
 tags
+client.vcxproj
+client.vcxproj.filters
+client.vcxproj.user

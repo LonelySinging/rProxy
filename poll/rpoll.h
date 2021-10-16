@@ -51,7 +51,7 @@ namespace GNET {
             NET_ERROR = 0x0001,     // 连接失败
             NEED_DELETE = 0x0002    // 有这个标志的对象会在poll函数中被删除
         };
-        
+
         // 基础包结构，只有数据大小头
         typedef struct {
             unsigned short int data_len;
@@ -71,10 +71,10 @@ namespace GNET {
             memset(&_addr, 0, sizeof(struct sockaddr_in));
         };
         BaseNet(string host, int port) :_host(host), _port(port), _flag(0),
-                                        _buffer(NULL),
-                                        _packet_size(0),
-                                        _packet_pos(0),
-                                        _sock_fd(0){
+            _buffer(NULL),
+            _packet_size(0),
+            _packet_pos(0),
+            _sock_fd(0) {
             memset(&_addr, 0, sizeof(struct sockaddr_in));
         };
         virtual ~BaseNet() {
@@ -92,7 +92,7 @@ namespace GNET {
             // Poll::deregister_poll(this); 
             // 还是把BaseNet和Poll分离开吧 
             // 也就select需要取消注册 epoll在套接字被close的时候就自己取消监听了
-            if (_buffer){
+            if (_buffer) {
                 free(_buffer);
                 _buffer = NULL;
                 // 当套接字被关闭的时候，缓冲区肯定没用了
@@ -122,16 +122,18 @@ namespace GNET {
             }
             bn->set_sock(sock);
             bn->set_port(ntohs(addr.sin_port));
-            bn->set_host(inet_ntoa(addr.sin_addr));
+            char ip[128];
+            inet_ntop(AF_INET, &addr.sin_addr, ip, sizeof(ip));
+            bn->set_host(ip);
             return bn;
         }
 
-        int Recv(char* data, size_t len){
+        int Recv(char* data, size_t len) {
             int ret = 0;
 #ifdef __linux
-            do{
+            do {
                 ret = recv(_sock_fd, data, len, 0);
-            }while(ret == -1 && errno == EINTR);    // windows 大概是没有errno
+            } while (ret == -1 && errno == EINTR);    // windows 大概是没有errno
 #else
             ret = recv(_sock_fd, data, len, 0);
 #endif
@@ -142,32 +144,32 @@ namespace GNET {
         int RecvN(char* data, size_t len) {
             int ret = 0;
             int real_recv = 0;
-            do{
+            do {
                 ret = Recv(data + real_recv, len - real_recv);
-                if (ret <= 0){return ret;}
+                if (ret <= 0) { return ret; }
                 real_recv += ret;
-            }while(real_recv != len);
+            } while (real_recv != len);
             return real_recv;
         };
-        
-        int Send(const char* data, size_t len){
+
+        int Send(const char* data, size_t len) {
             int ret = 0;
             ret = send(_sock_fd, data, len, 0);
-            if (ret != len && ret > 0){
-                printf("[!!!!!!!!] Send:  ret/len: %d/%d\n",ret, (int)len);
+            if (ret != len && ret > 0) {
+                printf("[!!!!!!!!] Send:  ret/len: %d/%d\n", ret, (int)len);
             }
             return ret;
         }
 
         // 不发送完len长度的数据绝不返回 除非接收错误
-        int SendN(char* data, size_t len){
+        int SendN(char* data, size_t len) {
             int ret = 0;
             int real_send = 0; // 总共发送的数据
-            do{
+            do {
                 ret = Send(data + real_send, len - real_send);
-                if(ret <= 0){return ret;}
+                if (ret <= 0) { return ret; }
                 real_send += ret;
-            }while(real_send != len);
+            } while (real_send != len);
             return real_send;
         }
 
@@ -175,14 +177,15 @@ namespace GNET {
         // 这里不太方便使用接收的那种处理方式，因为发送一般只调用一次
         int SendPacket(char* data, size_t len, bool N = false) {
             if (!data || !len) { return 0; }
-            BasePacket* tmp = (BasePacket*) malloc(len + sizeof(us16));
+            BasePacket* tmp = (BasePacket*)malloc(len + sizeof(us16));
             if (!tmp) { return 0; }
             tmp->data_len = (us16)len;
             memcpy(tmp->data, data, len);
             int ret = 0;
-            if (N){
+            if (N) {
                 ret = SendN((char*)tmp, len + sizeof(us16));
-            }else{
+            }
+            else {
                 ret = Send((char*)tmp, len + sizeof(us16));
             }
             free(tmp);
@@ -193,15 +196,15 @@ namespace GNET {
         // 包真的特别大 超过了缓冲区 ... 使用的时候别这么做...
         int RecvPacket(char* data, size_t expected_len) {
             if (!data) { return 0; }
-            if (_packet_size == 0){ // 需要接收头部 不用RecvN 需要标记头部是否接收完了 <<2>>
+            if (_packet_size == 0) { // 需要接收头部 不用RecvN 需要标记头部是否接收完了 <<2>>
                 us16 l = 0;
                 _packet_pos = 0;
                 memset(data, 0, expected_len);
                 int ret = RecvN((char*)&l, sizeof(us16));    // 先获取包的长度 recv返回值是1的情况确实发生了你敢信
-                if (ret <= 0){return 0;}
+                if (ret <= 0) { return 0; }
                 // assert(ret == sizeof(us16));
                 _packet_size = l;   // 得到包头
-                if (_packet_size > expected_len){
+                if (_packet_size > expected_len) {
                     printf("[Warning]: 异常的包头大小 %d, 偏移: %d\n", l, _packet_pos);
                     // assert(false && "异常包头"); // 调试阶段需要保证逻辑正确，但是逻辑没问题之后就应该注释，否则任意的不合法连接都将会使得服务端被关闭
                     _packet_size = 0;
@@ -210,14 +213,16 @@ namespace GNET {
                 assert(_packet_size != 0);
                 // printf("[Debug]: 接收到的头 %d\n", l);
                 return -1;
-            }else{
+            }
+            else {
                 int ret = Recv(data + _packet_pos, _packet_size - _packet_pos);
-                if (ret <= 0){return 0;}
-                assert((ret<= (_packet_size - _packet_pos)) && "接收到的长度不对");
-                if (ret != (_packet_size-_packet_pos)){   // 还没有接收完
+                if (ret <= 0) { return 0; }
+                assert((ret <= (_packet_size - _packet_pos)) && "接收到的长度不对");
+                if (ret != (_packet_size - _packet_pos)) {   // 还没有接收完
                     _packet_pos += ret;
                     return -1;
-                }else{
+                }
+                else {
                     int pp = _packet_size;
                     _packet_size = 0;
                     _packet_pos = 0;
@@ -239,20 +244,20 @@ namespace GNET {
         Passive(string host, int port) :BaseNet(host, port) {
             _sock_fd = socket(AF_INET, SOCK_STREAM, 0);
             if (_sock_fd < 0) {
-                perror("[Error]: 创建服务套接字失败");
+                perror("[Error]: 创建服务套接字失败\n");
                 SetError();
                 return;
             }
             memset(&_addr, 0, sizeof(_addr));
             if (inet_pton(AF_INET, _host.c_str(), &(_addr.sin_addr)) <= 0) {
-                perror("[Error]: 主机地址有错误");
+                perror("[Error]: 主机地址有错误\n");
                 SetError();
                 return;
             }
             _addr.sin_family = AF_INET;
             _addr.sin_port = htons(_port);
             if (bind(_sock_fd, (sockaddr*)&_addr, sizeof(_addr)) < 0) {
-                perror("[Error]: 绑定错误");
+                perror("[Error]: 绑定错误\n");
                 SetError();
                 return;
             }
@@ -277,7 +282,7 @@ namespace GNET {
             _addr.sin_family = AF_INET;
             _addr.sin_port = htons(_port);
             if (inet_pton(AF_INET, _host.c_str(), &_addr.sin_addr) <= 0) {
-                perror("[Error]: 主机地址有错误");
+                perror("[Error]: 主机地址有错误 ");
                 SetError();
                 return;
             }
@@ -374,9 +379,10 @@ namespace GNET {
                     bn = (BaseNet*)_events[i].data.ptr;  // 由多态选择具体的操作逻辑
 
                     std::vector<BaseNet*>::iterator it = find(_deleted_vector.begin(), _deleted_vector.end(), bn);  // 看看是不是在本次epoll_wait已经被删除了
-                    if (it == _deleted_vector.end()){
+                    if (it == _deleted_vector.end()) {
                         bn->OnRecv();
-                    }else{
+                    }
+                    else {
                         printf("[Debug]: 发现已删除对象\n");
                     }
                 }
