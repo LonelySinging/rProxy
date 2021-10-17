@@ -192,6 +192,7 @@ public:
         if (ret <= 0){
             OnClose();
             delete this;
+            return ;
         }
         HttpHeader *hh = new HttpHeader(string(_buffer));
         // printf ("[Info]: 从浏览器接收到的信息: \n %s\n", _buffer);

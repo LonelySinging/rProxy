@@ -81,7 +81,9 @@ void ClientHandle::OnRecv(){
         case CMD::CMD_END_SESSION:
             if (pk->get_packet_len() != sizeof(CMD::cmd_dis_connect)){OnClose();}
             del_session(((CMD::cmd_dis_connect*)pk->get_p())->_sid);
+            send_cmd(CMD::MAKE_cmd_dis_connect(((CMD::cmd_dis_connect*)pk->get_p())->_sid), sizeof(CMD::cmd_dis_connect));
             // 断开请求端 让他不要发东西了 只管发 收没收到不重要
+            printf("[Debug]: CMD_END_SESSION\n");
             break;
         case CMD::CMD_LOGIN:    // 登录
         {
