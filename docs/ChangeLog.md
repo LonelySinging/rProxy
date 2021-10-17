@@ -124,3 +124,69 @@
   
   + 依旧是使用延时删除的方法，移除的时候只是标记删除，但是，最重要的那个删除是接收到了服务端`CMD_END_SESSION`的指令导致的删除，这个是一次性的。如果这次不删除，那么就会导致客户端会再发送和这个`session`相关的数据，导致服务端再次通知这个指令尝试删除。实际上可以预估，这个过程触发的不会非常频繁，可以考虑使用这个方法，不过是增加禁止删除的标志位，在进入子线程的时候标记，使用完毕之后取消。如果子进程链接失败了，会直接调用`remove_hp`函数删除掉对象，如果成功了，`http`服务器会回复数据，而这个数据会发给服务端，但是服务端已经没有对应的`session`了，所以会发送`CMD_END_SESSION`的指令，最终删除掉这个会话。可能需要等所有子进程退出才能开始清理对象了，实际上也应该如此。对于这次的话，如果程序退出，执行扫尾工作时`remove_hp`是否还判断是否禁止删除呢？如果能够等待所有子进程都退出了，那么就不会有对象被误删的问题了。
 
+
+
++ `ASan`错误
+
+  ```C
+  =================================================================
+  ==31386==ERROR: AddressSanitizer: heap-use-after-free on address 0x60c000002018 at pc 0x555555564b3b bp 0x7fffffffdbb0 sp 0x7fffffffdba0
+  READ of size 8 at 0x60c000002018 thread T0
+      #0 0x555555564b3a in HttpRequestHandle::OnRecv() (/root/code/Server/server/main+0x10b3a)
+      #1 0x5555555608b6 in GNET::Poll::loop_poll() (/root/code/Server/server/main+0xc8b6)
+      #2 0x55555555ddf5 in main /root/code/Server/server/main.cpp:284
+      #3 0x7ffff6288bf6 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x21bf6)
+      #4 0x55555555aed9 in _start (/root/code/Server/server/main+0x6ed9)
+  
+  0x60c000002018 is located 88 bytes inside of 128-byte region [0x60c000001fc0,0x60c000002040)
+  freed by thread T0 here:
+      #0 0x7ffff6ef99c8 in operator delete(void*, unsigned long) (/usr/lib/x86_64-linux-gnu/libasan.so.4+0xe19c8)
+      #1 0x555555563fca in HttpRequestHandle::~HttpRequestHandle() (/root/code/Server/server/main+0xffca)
+      #2 0x555555564b03 in HttpRequestHandle::OnRecv() (/root/code/Server/server/main+0x10b03)
+      #3 0x5555555608b6 in GNET::Poll::loop_poll() (/root/code/Server/server/main+0xc8b6)
+      #4 0x55555555ddf5 in main /root/code/Server/server/main.cpp:284
+      #5 0x7ffff6288bf6 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x21bf6)
+  
+  previously allocated by thread T0 here:
+      #0 0x7ffff6ef8448 in operator new(unsigned long) (/usr/lib/x86_64-linux-gnu/libasan.so.4+0xe0448)
+      #1 0x55555556553a in Httpd::OnRecv() (/root/code/Server/server/main+0x1153a)
+      #2 0x5555555608b6 in GNET::Poll::loop_poll() (/root/code/Server/server/main+0xc8b6)
+      #3 0x55555555ddf5 in main /root/code/Server/server/main.cpp:284
+      #4 0x7ffff6288bf6 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x21bf6)
+  
+  SUMMARY: AddressSanitizer: heap-use-after-free (/root/code/Server/server/main+0x10b3a) in HttpRequestHandle::OnRecv()
+  Shadow bytes around the buggy address:
+    0x0c187fff83b0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+    0x0c187fff83c0: fa fa fa fa fa fa fa fa fd fd fd fd fd fd fd fd
+    0x0c187fff83d0: fd fd fd fd fd fd fd fd fa fa fa fa fa fa fa fa
+    0x0c187fff83e0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+    0x0c187fff83f0: fa fa fa fa fa fa fa fa fd fd fd fd fd fd fd fd
+  =>0x0c187fff8400: fd fd fd[fd]fd fd fd fd fa fa fa fa fa fa fa fa
+    0x0c187fff8410: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+    0x0c187fff8420: fa fa fa fa fa fa fa fa fd fd fd fd fd fd fd fd
+    0x0c187fff8430: fd fd fd fd fd fd fd fd fa fa fa fa fa fa fa fa
+    0x0c187fff8440: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+    0x0c187fff8450: fa fa fa fa fa fa fa fa fd fd fd fd fd fd fd fd
+  Shadow byte legend (one shadow byte represents 8 application bytes):
+    Addressable:           00
+    Partially addressable: 01 02 03 04 05 06 07 
+    Heap left redzone:       fa
+    Freed heap region:       fd
+    Stack left redzone:      f1
+    Stack mid redzone:       f2
+    Stack right redzone:     f3
+    Stack after return:      f5
+    Stack use after scope:   f8
+    Global redzone:          f9
+    Global init order:       f6
+    Poisoned by user:        f7
+    Container overflow:      fc
+    Array cookie:            ac
+    Intra object redzone:    bb
+    ASan internal:           fe
+    Left alloca redzone:     ca
+    Right alloca redzone:    cb
+  ==31386==ABORTING
+  ```
+
+  

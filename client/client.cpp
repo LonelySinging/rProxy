@@ -70,7 +70,6 @@ void ServerConn::remove_hp(int sid) {
 	if (sid == -1) {
 		map<int, HttpProxy*>::iterator iter = _hps.begin();	// 这地方不能使用递归删除，因为调用自己删除之后 这里的循环中的迭代器就失效了
 		for (; iter != _hps.end(); iter++) {
-			send_cmd(CMD::MAKE_cmd_dis_connect(iter->first), sizeof(CMD::cmd_dis_connect));	// 通知服务端这个会话已经结束了
 			delete iter->second;
 		}
 		_hps.clear();
@@ -79,8 +78,8 @@ void ServerConn::remove_hp(int sid) {
 	map<int, HttpProxy*>::iterator iter = _hps.find(sid);
 	if (iter != _hps.end()) {
 		if (iter->second->is_forbid_delete()) { return; }
-		send_cmd(CMD::MAKE_cmd_dis_connect(sid), sizeof(CMD::cmd_dis_connect));	// 通知服务端这个会话已经结束了
 		delete iter->second;
+		printf("[Info]: 关闭会话 sid: %d\n", sid);
 		_hps.erase(iter);
 	}
 	else {

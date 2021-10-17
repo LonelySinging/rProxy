@@ -81,7 +81,8 @@ public:
 		}
 		else { assert(false && "怎么想都执行不到这里吧？？？"); }
 		_http_proxy->set_forbid_delete(false);
-		_server_conn->remove_hp(_sid);
+		// _server_conn->remove_hp(_sid);
+		_server_conn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));
 	}
 };
 
@@ -92,7 +93,9 @@ void HandleHttp::OnRecv() {
 	int ret = Recv(_buff, Packet::DATA_SIZE);
 	if (ret <= 0) {
 		printf("[Debug]: 接收结束 ret=%d sid=[%d]\n", ret, _sid);
-		_server_conn->remove_hp(_sid);	// 结束 handle
+		// _server_conn->remove_hp(_sid);	// 结束 handle
+		_server_conn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));
+		GNET::Poll::deregister_poll(this);
 	}else {
 		// printf("[Debug]: <-- Http %d [%d]\n", ret, _sid);
 		Packet pk(_sid, ret, _buff);
@@ -119,7 +122,8 @@ void HttpProxy::OnRecv(char* data, int len) {
 		if (!_http_handler) {
 			printf("[Error]: 收到了错误的请求 %d\n", _sid);
 			dump(http_str);
-			_server_conn->remove_hp(_sid);
+			// _server_conn->remove_hp(_sid);
+			_server_conn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));
 		}
 		else {
 			len = _http_handler->SendN(data, len);
