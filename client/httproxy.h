@@ -68,7 +68,7 @@ public:
 	void dump(string str, int len = 35) {
 		int str_len = str.length();
 		int dump_len = (str_len < len) ? str_len : len;
-		printf("[Debug]: dump(dump_len=%d)\n", dump_len);
+		LOG_D("dump(dump_len=%d)", dump_len);
 		for (int i = 0; i < dump_len; i++) {
 			printf("%c", str.c_str()[i]);
 		}

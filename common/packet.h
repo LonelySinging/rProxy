@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "types.h"
+#include "log.h"
 
 class Packet{
 public:
@@ -50,7 +51,7 @@ public:
     void dump(int len = 15){
         int pk_len = get_packet_len();
         int dump_len = (len<pk_len)?len: pk_len;
-        printf("[Debug]: dump(sid=%d, dump_len=%d): ", get_sid(), dump_len);
+        LOG_D("dump(sid=%d, dump_len=%d): ", get_sid(), dump_len);
         for (int i=0;i<dump_len;i++){
             if (!(i % 15)){
                 printf("\n");

@@ -1,5 +1,6 @@
 #include "client.h"
 #include "../common/types.h"
+#include "../common/log.h"
 
 #include <iostream>
 #include <stdlib.h>
@@ -12,7 +13,7 @@ void ServerConn::OnRecv() {
 		OnClose();
 		GNET::Poll::deregister_poll(this);
 		GNET::Poll::stop_poll();
-		printf("[Info]: 与服务器断开 ret=[%d]\n", ret);
+		LOG_I("与服务器断开 ret=[%d]", ret);
 		delete this;
 		return;
 	}
@@ -63,8 +64,6 @@ void ServerConn::send_cmd(char* data, int len) {
 	free(data);
 }
 
-
-
 void ServerConn::remove_hp(int sid) {
 	lock_guard<mutex> l(_hps_mtx);
 	if (sid == -1) {
@@ -79,7 +78,7 @@ void ServerConn::remove_hp(int sid) {
 	if (iter != _hps.end()) {
 		if (iter->second->is_forbid_delete()) { return; }
 		delete iter->second;
-		printf("[Info]: 关闭会话 sid: %d\n", sid);
+		LOG_D("结束会话 sid: %d", sid);
 		_hps.erase(iter);
 	}
 	else {
@@ -95,6 +94,7 @@ int main(int argv, char* args[]) {
 	// 因为linux默认是utf-8编码，所以代码文件是utf-8，以至于字符串常量编码也是
 	// 但是windows的控制台编码是gbk，所以会出现乱码问题
 	system("chcp 65001 && cls");	
+	LOG_I("欢迎使用本程序 by. %s", "星途");
 	char* host = "39.106.164.33";
 	int port = 7201;
 	char* note = NULL;		// 备注
@@ -129,14 +129,14 @@ int main(int argv, char* args[]) {
 	}
 	if (!token) {
 		if (strlen(token) > CMD::cmd_login::PASSWD_LEN) {
-			printf("[Error]: 口令长度不能大于%d\n", CMD::cmd_login::PASSWD_LEN);
+			LOG_E("口令长度不能大于%d", CMD::cmd_login::PASSWD_LEN);
 			return -2;
 		}
 	}
 
 	if (!note) {
 		if (strlen(note) > CMD::cmd_login::DES_LEN) {
-			printf("[Error]: 描述长度不能大于%d\n", CMD::cmd_login::DES_LEN);
+			LOG_E("描述长度不能大于%d", CMD::cmd_login::DES_LEN);
 			return -3;
 		}
 	}
@@ -149,7 +149,8 @@ int main(int argv, char* args[]) {
 	GNET::Poll::init();
 	//if ((new ServerConn("127.0.0.1", 7200))->IsError()) {
 	if ((new ServerConn(host, port, note, token))->IsError()) {
-		printf("[Error]: 连接服务器失败 \n");
+		LOG_E("连接服务器失败");
+		getchar();
 		return -1;
 	}
 

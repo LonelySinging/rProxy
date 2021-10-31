@@ -28,7 +28,7 @@ public:
 	void run() {
 		set_delete();	// 因为是通过标志位由ThreadHelper代劳删除,所以一开始就设置标志位是没有问题的
 		if (_http_proxy->_http_handler) {
-			printf("[Debug]: 已经建立链接的http又一次建立链接 sid: %d\n", _sid);	// 愚蠢的浏览器可能会发送两次请求，但愿这么处理不会让它发疯
+			LOG_D("已经建立链接的http又一次建立链接 sid: %d", _sid);	// 愚蠢的浏览器可能会发送两次请求，但愿这么处理不会让它发疯
 			return;
 		}
 		if (_http_str.find("GET") == 0 || _http_str.find("POST") == 0 || _http_str.find("HEAD") == 0) {
@@ -40,24 +40,24 @@ public:
 				if (!_http_proxy->_http_handler->IsError()) {
 					string new_hh = hh.rewrite_header();
 					if (_http_proxy->_http_handler->SendN((char*)new_hh.c_str(), new_hh.length()) <= 0) {
-						printf("[Error]: 发送到http失败 sid=[%d]\n", _sid);
+						LOG_E("发送到http失败 sid=[%d]", _sid);
 					}else {
 						GNET::Poll::register_poll(_http_proxy->_http_handler, _sid);
 						_http_proxy->set_forbid_delete(false);
 						return;
 					}
 				}else {
-					printf("[Debug]: 连接http失败 %s:%d [%d]\n", ip, port, _sid);
+					LOG_E("连接http失败 %s:%d [%d]", ip, port, _sid);
 				}
 			}else {
-				printf("[Error]: 域名解析失败 %s:%d [%d]\n", hh.get_host().c_str(), hh.get_port(), _sid);
+				LOG_E("域名解析失败 %s:%d [%d]", hh.get_host().c_str(), hh.get_port(), _sid);
 			}
-			printf("[Info]: 结束会话 [%d]\n", _sid);
 		}
 		else if (_http_str.find("CONNECT") == 0) {	// https 请求
 			HttpHeader hh(_http_str);
 			char ip[128] = { 0 };
 			int port = hh.get_port();
+			LOG_I("(%d): %s", _sid, hh.get_host().c_str());
 			if (HttpProxy::GetIpByName(hh.get_host().c_str(), ip) && port) {
 				_http_proxy->_http_handler = new HandleHttp(ip, port, _server_conn, _sid);	// 与https服务端建立连接
 				if (!_http_proxy->_http_handler->IsError()) {
@@ -65,21 +65,20 @@ public:
 					int ret = _server_conn->SendPacket(pk.get_p(), pk.get_packet_len(), true);
 					// printf("[Debug]: 发送认证 %d [%d]\n", ret, _sid);
 					if (ret <= 0) {
-						printf("[Error]: 发送到Server失败 sid=[%d]\n", _sid);
+						LOG_E("发送到Server失败 sid=[%d]", _sid);
 					}else {
 						GNET::Poll::register_poll(_http_proxy->_http_handler, _sid);
 						_http_proxy->set_forbid_delete(false);
 						return;
 					}
 				}else {
-					printf("[Debug]: 连接http失败 %s:%d [%d]\n", ip, port, _sid);
+					LOG_D("连接http失败 %s:%d [%d]", ip, port, _sid);
 				}
 			}else {
-				printf("[Error]: 域名解析失败 %s:%d [%d]\n", hh.get_host().c_str(), hh.get_port(), _sid);
+				LOG_E("域名解析失败 %s:%d [%d]", hh.get_host().c_str(), hh.get_port(), _sid);
 			}
-			printf("[Info]: 结束会话 %d\n", _sid);
 		}
-		else { assert(false && "怎么想都执行不到这里吧？？？"); }
+		else { /*assert(false && "怎么想都执行不到这里吧？？？");*/ }
 		_http_proxy->set_forbid_delete(false);
 		// _server_conn->remove_hp(_sid);
 		_server_conn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));
@@ -92,7 +91,7 @@ void HandleHttp::OnRecv() {
 	}
 	int ret = Recv(_buff, Packet::DATA_SIZE);
 	if (ret <= 0) {
-		printf("[Debug]: 接收结束 ret=%d sid=[%d]\n", ret, _sid);
+		LOG_D("接收结束 ret=%d sid=[%d]", ret, _sid);
 		// _server_conn->remove_hp(_sid);	// 结束 handle
 		_server_conn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));
 		GNET::Poll::deregister_poll(this);
@@ -120,7 +119,7 @@ void HttpProxy::OnRecv(char* data, int len) {
 		THREAD::ThreadHelper::start_thread_task(hc);	// 直接交给一个独立线程去完成
 	}else {
 		if (!_http_handler) {
-			printf("[Error]: 收到了错误的请求 %d\n", _sid);
+			LOG_E("收到了错误的请求 %d\n", _sid);
 			dump(http_str);
 			// _server_conn->remove_hp(_sid);
 			_server_conn->send_cmd(CMD::MAKE_cmd_dis_connect(_sid), sizeof(CMD::cmd_dis_connect));

@@ -15,6 +15,7 @@
 #endif
 
 #include "../common/types.h"
+#include "../common/log.h"
 
 #include <string.h>
 
@@ -84,7 +85,7 @@ namespace GNET {
         };
 
         virtual void OnRecv() {
-            printf("[Debug]: BaseNet的OnRecv()\n");
+            LOG_D("BaseNet的OnRecv()");
         };
 
         // 不在析构函数中关闭套接字是因为有时delete对象保留连接的需要 所以把对象和连接分离比较好
@@ -155,9 +156,9 @@ namespace GNET {
         int Send(const char* data, size_t len) {
             int ret = 0;
             ret = send(_sock_fd, data, len, 0);
-            if (ret != len && ret > 0) {
-                printf("[!!!!!!!!] Send:  ret/len: %d/%d\n", ret, (int)len);
-            }
+            //if (ret != len && ret > 0) {
+            //    printf("[!!!!!!!!] Send:  ret/len: %d/%d", ret, (int)len);
+            //}
             return ret;
         }
 
@@ -205,7 +206,7 @@ namespace GNET {
                 // assert(ret == sizeof(us16));
                 _packet_size = l;   // 得到包头
                 if (_packet_size > expected_len) {
-                    printf("[Warning]: 异常的包头大小 %d, 偏移: %d\n", l, _packet_pos);
+                    LOG_W("异常的包头大小 %d, 偏移: %d", l, _packet_pos);
                     // assert(false && "异常包头"); // 调试阶段需要保证逻辑正确，但是逻辑没问题之后就应该注释，否则任意的不合法连接都将会使得服务端被关闭
                     _packet_size = 0;
                     return 0;   // 包头异常表示这个连接已经没有维护的必要了 应该结束
@@ -244,28 +245,28 @@ namespace GNET {
         Passive(string host, int port) :BaseNet(host, port) {
             _sock_fd = socket(AF_INET, SOCK_STREAM, 0);
             if (_sock_fd < 0) {
-                perror("[Error]: 创建服务套接字失败\n");
+                LOG_E("创建服务套接字失败");
                 SetError();
                 return;
             }
             memset(&_addr, 0, sizeof(_addr));
             if (inet_pton(AF_INET, _host.c_str(), &(_addr.sin_addr)) <= 0) {
-                perror("[Error]: 主机地址有错误\n");
+                LOG_E("主机地址有错误");
                 SetError();
                 return;
             }
             _addr.sin_family = AF_INET;
             _addr.sin_port = htons(_port);
             if (bind(_sock_fd, (sockaddr*)&_addr, sizeof(_addr)) < 0) {
-                perror("[Error]: 绑定错误\n");
+                LOG_E("绑定错误");
                 SetError();
                 return;
             }
             listen(_sock_fd, LISTEN_COUNT); // 需要错误处理
-            printf("[Debug]: 开始监听, %s:%d\n", _host.c_str(), _port);
+            LOG_D("开始监听, %s:%d", _host.c_str(), _port);
         };
         virtual void OnRecv() {
-            printf("[Debug]: Passivs的虚方法\n");
+            LOG_D("Passivs的虚方法");
         };
     };
 
@@ -274,7 +275,7 @@ namespace GNET {
         Active(string host, int port) : BaseNet(host, port) {
             _sock_fd = socket(AF_INET, SOCK_STREAM, 0);
             if (_sock_fd < 0) {
-                perror("[Error]: 创建连接套接字失败");
+                LOG_E("创建连接套接字失败");
                 SetError();
                 return;
             }
@@ -282,12 +283,12 @@ namespace GNET {
             _addr.sin_family = AF_INET;
             _addr.sin_port = htons(_port);
             if (inet_pton(AF_INET, _host.c_str(), &_addr.sin_addr) <= 0) {
-                perror("[Error]: 主机地址有错误 ");
+                LOG_E("主机地址有错误 ");
                 SetError();
                 return;
             }
             if (connect(_sock_fd, (struct sockaddr*)&_addr, sizeof(_addr)) < 0) {
-                perror("[Error]: 连接错误");
+                LOG_E("连接错误");
                 SetError();
                 return;
             }
@@ -331,7 +332,7 @@ namespace GNET {
 
         static void register_poll(BaseNet* bn, int sid = 0) {
             std::lock_guard<std::mutex> l(_poll_mtx);
-            printf("[Debug]: 开始注册poll _sock_fd: %d, sid: %d\n", bn->get_sock(), sid);
+            LOG_D("开始注册poll _sock_fd: %d, sid: %d", bn->get_sock(), sid);
 
 #ifdef __linux
             // _ev.events = EPOLLIN | EPOLLET;
@@ -344,7 +345,7 @@ namespace GNET {
         }
         static void deregister_poll(BaseNet* bn, int sid = 0) {
             std::lock_guard<std::mutex> l(_poll_mtx);
-            printf("[Debug]: 取消注册poll: %d sid: %d\n", bn->get_sock(), sid);
+            LOG_D("取消注册poll: %d sid: %d", bn->get_sock(), sid);
 #ifdef __linux
             _deleted_vector.push_back(bn);
             epoll_ctl(_eph, EPOLL_CTL_DEL, bn->get_sock(), NULL);
@@ -369,7 +370,7 @@ namespace GNET {
 #endif
 
         static void loop_poll() {
-            printf("[Debug]: 进入poll循环\n");
+            LOG_D("进入poll循环");
             _running = true;
             for (; _running;) {
 #ifdef __linux
@@ -393,7 +394,7 @@ namespace GNET {
                 update_fds();
                 int n = select(0, &_read_fds, NULL, NULL, /*&_select_timeout*/NULL);
                 if (n == SOCKET_ERROR) {
-                    printf("[Error]: Select 错误 WSAGetLastError: %d\n", WSAGetLastError());
+                    LOG_E("Select 错误 WSAGetLastError: %d", WSAGetLastError());
                     stop_poll();
                     WSACleanup();
                     continue;

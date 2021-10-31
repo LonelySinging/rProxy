@@ -48,7 +48,7 @@ public:
 
 		int header_end = is_in(http_str, "\r\n\r\n");
 		if (header_end == -1) {
-			printf("[Warning]: 找不到请求头的尾部\n");
+			LOG_W("找不到请求头的尾部");
 			return; 
 		}
 		_http_str = http_str;
@@ -92,7 +92,7 @@ public:
 			string& line = _lines[i];
 			int p1 = is_in(line, ":");
 			if (p1 == -1) {
-				printf("[Error]: 解析请求行出错: %s\n", line.c_str());
+				LOG_E("解析请求行出错: %s", line.c_str());
 				return;
 			}
 			string k = line.substr(0, p1);
@@ -194,7 +194,7 @@ public:
 			string tmp = _http_str;
 			int pos = tmp.find(str);
 			if (pos > tmp.length()) {
-				printf("[Warning]: 找不到头部主机名\n");
+				LOG_W("找不到头部主机名");
 				return tmp;	// 尝试发出
 			}
 			tmp.erase(pos, str.length());
